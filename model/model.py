@@ -5,13 +5,17 @@ from base import BaseModel
 
 class Tabular_ModelEncoder(nn.Module):
     
-    def __init__(self, input_dim, hidden_dims, z_dim):
+    def __init__(self, input_dim, hidden_dim, z_dim):
 
         super(Tabular_ModelEncoder,self).__init__()
         
         #Shared encoding layers of the model
         self.shared_model = nn.Linear(input_dim, hidden_dims)
         
+        #Different encoding layers
+        self.encoder_1 = nn.Linear(hidden_dim, hidden_dim)
+        self.encoder_2 = nn.Linear(hidden_dim, hidden_dim)
+
         #Output layers for each encoder
         self.mean_encoder_1 = nn.Linear(hidden_dims, z_dim)
         self.log_std_1      = nn.Linear(hidden_dims, z_dim)
@@ -29,11 +33,13 @@ class Tabular_ModelEncoder(nn.Module):
         out_shared = self.act_f(self.shared_model(x))
         
         #Forward of each encoder
-        mean_t = self.mean_encoder_1(out_shared)
-        log_std_t = self.log_std_1(out_shared)
-
-        mean_s = self.mean_encoder_2(out_shared)
-        log_std_s = self.log_std_2(out_shared)
+        out_1 = self.act_f(self.encoder_1(out_shared))
+        mean_t = self.mean_encoder_1(out_1)
+        log_std_t = self.log_std_1(out_1)
+        
+        out_2 = self.act_f(self.encoder_2(out_shared))
+        mean_s = self.mean_encoder_2(out_2)
+        log_std_s = self.log_std_2(out_2)
 
         return mean_t, mean_s, log_std_t, log_std_s
 
