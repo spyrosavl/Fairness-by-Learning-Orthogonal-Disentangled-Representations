@@ -65,3 +65,9 @@ class MetricTracker:
 
     def result(self):
         return dict(self._data.average)
+
+def reparameterization(mean_t, mean_s, log_std_t, log_std_s):
+    z1 = mean_t + torch.exp(log_std_t) * torch.normal(torch.from_numpy([0,1].T), torch.eye(2))
+    z2 = mean_s + torch.exp(log_std_s) * torch.normal(torch.from_numpy([1,0].T), torch.eye(2))
+    return z1,z2
+
