@@ -42,11 +42,10 @@ class GermanCreditDataset(Dataset):
         self.csv_file = csv_file
         self.root_dir = root_dir
         self.text_transforms = text_transforms
-        self.rows, self.targets = self.get_data(self.csv_file)
+        self.rows, self.targets, self.sensitive = self.get_data(self.csv_file)
 
     def get_data(self, _file):
-        rows = []
-        targets = []
+        rows=[];  targets=[]; sensitive=[]
         with open(_file) as csv_file:
           lines = csv_file.readlines()
           for l in lines:
@@ -54,7 +53,8 @@ class GermanCreditDataset(Dataset):
             r = [int(i) for i in r]
             rows.append(r[:-1])
             targets.append(r[-1])
-        return rows, targets
+            sensitive.append(r[8])
+        return rows, targets, sensitive
 
     def __len__(self):
         return len(self.rows)
@@ -65,7 +65,8 @@ class GermanCreditDataset(Dataset):
             preprocessed_data = self.text_transforms(preprocessed_data)
 
         label = 0 if self.targets[idx] is 2 else 1
-        return preprocessed_data, label
+        sensitive = self.sensitive[idx]
+        return preprocessed_data, sensitive, label
 
 
 if __name__ == '__main__':
