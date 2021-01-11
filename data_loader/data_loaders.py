@@ -48,21 +48,24 @@ class GermanCreditDataset(Dataset):
         rows = []
         targets = []
         with open(_file) as csv_file:
-          r = csv_file.readline().split(",")[0].split()
-          r = [int(i) for i in r]
-          rows.append(r[:-1])
-          targets.append(r[-1])
+          lines = csv_file.readlines()
+          for l in lines:
+            r = l.split(",")[0].split()
+            r = [int(i) for i in r]
+            rows.append(r[:-1])
+            targets.append(r[-1])
         return rows, targets
 
     def __len__(self):
         return len(self.rows)
 
     def __getitem__(self, idx):
-        targets = self.targets[idx]
         preprocessed_data = self.rows[idx]
         if self.text_transforms is not None:
             preprocessed_data = self.text_transforms(preprocessed_data)
-        return preprocessed_data, targets
+
+        label = 0 if self.targets[idx] is 2 else 1
+        return preprocessed_data, label
 
 
 if __name__ == '__main__':
