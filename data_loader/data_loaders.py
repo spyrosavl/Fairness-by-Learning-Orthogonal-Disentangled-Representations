@@ -42,25 +42,27 @@ class GermanCreditDataset(Dataset):
         self.csv_file = csv_file
         self.root_dir = root_dir
         self.text_transforms = text_transforms
-        self.rows = self.get_data(self.csv_file)
+        self.rows, self.targets = self.get_data(self.csv_file)
 
     def get_data(self, _file):
         rows = []
+        targets = []
         with open(_file) as csv_file:
-          #import pdb; pdb.set_trace()
           r = csv_file.readline().split(",")[0].split()
           r = [int(i) for i in r]
-          rows.append(r)
-        return rows
+          rows.append(r[:-1])
+          targets.append(r[-1])
+        return rows, targets
 
     def __len__(self):
         return len(self.rows)
 
     def __getitem__(self, idx):
+        targets = self.targets[idx]
         preprocessed_data = self.rows[idx]
         if self.text_transforms is not None:
             preprocessed_data = self.text_transforms(preprocessed_data)
-        return preprocessed_data
+        return preprocessed_data, targets
 
 
 if __name__ == '__main__':
