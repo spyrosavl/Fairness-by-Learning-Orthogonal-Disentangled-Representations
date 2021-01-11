@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-class Tabular_ModelEncoder(nn.Module):
+class Tabular_ModelEncoder(BaseModel):
     
     def __init__(self, input_dim, hidden_dim, z_dim):
 
@@ -22,7 +22,6 @@ class Tabular_ModelEncoder(nn.Module):
         self.log_std_2      = nn.Linear(hidden_dims, z_dim)
 
         #Activation function
-        '(?)Not sure if in the experiments this act function is used'
         self.act_f = nn.ReLU() 
     
     def forward(self, x):
@@ -41,7 +40,7 @@ class Tabular_ModelEncoder(nn.Module):
 
         return mean_t, mean_s, log_std_t, log_std_s
 
-class Tabular_ModelDecoder(nn.Module):
+class Tabular_ModelDecoder(BaseModel):
     
     def __init__(self, z_dim, hidden_dims, target_classes, sensitive_classes):
 
@@ -53,29 +52,38 @@ class Tabular_ModelDecoder(nn.Module):
         #Activation function
         self.act_f = nn.ReLU()
 
-        #Architecture of the decoder
-        self.layers = []
+        #Architecture of the decoder 1
+        self.layers_1 = []
+        for layer_index_1 in range(1, len(self.num_layers)):
+            self.layers_1 += [nn.Linear(self.num_layers[layer_index_1 - 1],
+                            self.num_layers[layer_index_1]), self.act_f]
         
-        for layer_index in range(1, len(self.num_layers)):
-            self.layers += [nn.Linear(self.num_layers[layer_index - 1],
-                            self.num_layers[layer_index]), self.act_f]
+        #Architecture of the decoder 2
+        self.layers_2 = []
+        for layer_index_2 in range(1, len(self.num_layers)):
+            self.layers_2 += [nn.Linear(self.num_layers[layer_index_2 - 1],
+                            self.num_layers[layer_index_2]), self.act_f]
         
         #Output layer
         self.output_1 = nn.Linear(self.num_layers[-1], target_classes)
         self.output_2 = nn.Linear(self.num_layers[-1], sensitive_classes)
-
-        self.Decoder = nn.ModuleList(self.layers)
+        
+        self.Decoder_1 = nn.ModuleList(self.layers_1)
+        self.Decoder_2 = nn.ModuleList(self.layers_2)
     
     def forward(self, z_1, z_2):
 
-        for layers in self.Decoder:
-            out_1= layers(z_1)
-            out_2= layers(z_2)
-
+        for layers_1 in self.Decoder_1:
+            out_1 = layers_1(z_1)
             x_1 = self.output_1(out_1)
-            x_2 = self.output_2(out_2)
+            
+        for layers_2 in self.Decoder_2:
+            out_2 = layers_2(z_1)
+            out_3 = layers_2(z_2)
+            x_2 = self.output_1(out_2)
+            x_3 = self.output_1(out_3)
 
-        return x_1, x_2
+        return x_1, x_2, x_3
 
 
 

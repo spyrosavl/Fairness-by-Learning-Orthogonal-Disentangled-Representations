@@ -7,15 +7,6 @@ class BaseModel(nn.Module):
     """
     Base class for all models
     """
-    @abstractmethod
-    def forward(self, *inputs):
-        """
-        Forward pass logic
-
-        :return: Model output
-        """
-        raise NotImplementedError
-
     def __str__(self):
         """
         Model prints with number of trainable parameters
