@@ -76,15 +76,15 @@ class Tabular_ModelDecoder(BaseModel):
 
         for layers_1 in self.Decoder_1:
             out_1 = layers_1(z_1)
-            x_1 = self.output_1(out_1)
+            y_zt = self.output_1(out_1)
             
         for layers_2 in self.Decoder_2:
             out_2 = layers_2(z_1)
             out_3 = layers_2(z_2)
-            x_2 = self.output_1(out_2)
-            x_3 = self.output_1(out_3)
+            s_zt = self.output_1(out_2)
+            s_zs = self.output_1(out_3)
 
-        return x_1, x_2, x_3
+        return y_zt, s_zt, s_zs
 
 
 
