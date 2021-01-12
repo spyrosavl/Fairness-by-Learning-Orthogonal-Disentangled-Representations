@@ -61,8 +61,8 @@ class GermanCreditDatasetOneHot(Dataset):
         cat = np.unique(sensitive)
         cat = list(set(cat))
         cat.sort()
-        one_hot = MultiLabelBinarizer(classes=cat).fit(cat)
-        sensitive = one_hot.transform(sensitive)
+        one_hot = MultiLabelBinarizer(classes=cat).fit([cat])
+        sensitive = one_hot.transform(np.asarray(sensitive)[:,None])
         return rows, targets, sensitive
 
     def get_onehot_attributes(self, rows, columns):
@@ -74,8 +74,8 @@ class GermanCreditDatasetOneHot(Dataset):
           cat = np.unique(occ)
           cat = list(set(cat))
           cat.sort()
-          one_hot = MultiLabelBinarizer(classes=cat).fit(cat)
-          transformed = one_hot.transform(occ)
+          one_hot = MultiLabelBinarizer(classes=cat).fit([cat])
+          transformed = one_hot.transform(occ[:,None])
           if features is not None:
             features = np.column_stack((features, transformed))
           else:
@@ -110,6 +110,8 @@ class AdultDatasetOneHot(Dataset):
         rows=[];  targets=[]; sensitive=[]
         with open(_file) as txt_file:
           lines = txt_file.readlines()
+          if lines[-1] == '\n':
+            lines = lines[:-1]
           for l in lines:
             r = l.split(",")
             rows.append(r[:-1])
@@ -119,8 +121,9 @@ class AdultDatasetOneHot(Dataset):
         cat = np.unique(sensitive)
         cat = list(set(cat))
         cat.sort()
-        one_hot = MultiLabelBinarizer(classes=cat).fit(cat)
-        sensitive = one_hot.transform(sensitive)
+        one_hot = MultiLabelBinarizer(classes=cat).fit([cat])
+        sensitive = np.asarray(sensitive)
+        sensitive = one_hot.transform(sensitive[:,None])
         return rows, targets, sensitive
 
     def get_onehot_attributes(self, rows, columns):
@@ -132,21 +135,18 @@ class AdultDatasetOneHot(Dataset):
           cat = np.unique(occ)
           cat = list(set(cat))
           cat.sort()
-          one_hot = MultiLabelBinarizer(classes=cat).fit(cat)
-          transformed = one_hot.transform(occ)
+          one_hot = MultiLabelBinarizer(classes=cat).fit([cat])
+          transformed = one_hot.transform(occ[:,None])
           if features is not None:
             features = np.column_stack((features, transformed))
           else:
             features = transformed
         else:
-          try:
-            if features is not None:
-              features = np.column_stack((features, rows[:,i,None]))
-            else:
-              features = rows[:,i,None]
-          except:
-            import pdb; pdb.set_trace()
-      features = np.asarray([[int(i) for i in j] for j in features])        
+          if features is not None:
+            features = np.column_stack((features, rows[:,i,None]))
+          else:
+            features = rows[:,i,None]
+        features = np.asarray([[int(i) for i in j] for j in features])        
       return features
 
     def __len__(self):
@@ -156,8 +156,8 @@ class AdultDatasetOneHot(Dataset):
         preprocessed_data = self.features[idx]
         if self.text_transforms is not None:
             preprocessed_data = self.text_transforms(preprocessed_data)
-        sensitive = self.sensitive[idx]
         label = 0 if '<=50K' in self.targets[idx] else 1
+        sensitive = self.sensitive[idx]
         return preprocessed_data, sensitive, label
 
 
