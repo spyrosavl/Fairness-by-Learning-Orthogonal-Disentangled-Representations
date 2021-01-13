@@ -4,6 +4,8 @@ import pandas as pd
 from pathlib import Path
 from itertools import repeat
 from collections import OrderedDict
+from model.model import *
+from model.loss import *
 
 
 def ensure_dir(dirname):
@@ -65,3 +67,37 @@ class MetricTracker:
 
     def result(self):
         return dict(self._data.average)
+
+def reparameterization(mean_t, mean_s, log_std_t, log_std_s):
+    z1 = mean_t + torch.exp(log_std_t) * torch.normal(torch.from_numpy(np.array([0,1]).T), torch.eye(2))
+    z2 = mean_s + torch.exp(log_std_s) * torch.normal(torch.from_numpy(np.array([1,0]).T), torch.eye(2))
+    return z1,z2
+
+def loss_forward(data_input):
+    mean_t, mean_s, log_std_t, log_std_s = Tabular_ModelEncoder().forward(data_input)
+
+    prior_mean_t = torch.from_numpy(np.array([0,1]).T)
+    prior_cov_t = torch.eye(2)
+    prior_mean_s = torch.from_numpy(np.array([1,0]).T)
+    prior_cov_s = torch.eye(2)
+
+    L_zt = KLD(mean_t, log_std_t, prior_mean_t, prior_cov_t)
+    L_zs = KLD(mean_s, log_std_s, prior_mean_s, prior_cov_s)
+    L_od = L_od(L_zt,L_zs)
+
+    z_1, z_2 = reparameterization(mean_t, mean_s, log_std_t, log_std_s)
+
+    y_zt, s_zt, s_zs = Tabular_ModelDecoder().forward(z_1, z_2)
+    
+    tar_cond = 'Not sure how these are implemented.It represents p(y|x)'
+    sen_cond = 'Not sure how these are implemented.It represents p(s|x)'
+
+    L_t = L_t(tar_cond, y_zt)
+    L_s = L_s(sen_cond, s_zs)
+    L_e = L_e(s_zt)
+
+    return L_od, L_t, L_s, L_e
+
+
+
+
