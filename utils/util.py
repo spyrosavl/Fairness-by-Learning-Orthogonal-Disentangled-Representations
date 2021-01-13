@@ -77,12 +77,12 @@ def loss_forward(data_input):
     mean_t, mean_s, log_std_t, log_std_s = Tabular_ModelEncoder().forward(data_input)
 
     prior_mean_t = torch.from_numpy(np.array([0,1]).T)
-    prior_std_t = 'If the covariance is the identity what is the prior std?'
+    prior_cov_t = torch.eye(2)
     prior_mean_s = torch.from_numpy(np.array([1,0]).T)
-    prior_std_s = 'If the covariance is the identity what is the prior std?'
+    prior_cov_s = torch.eye(2)
 
-    L_zt = KLD(mean_t, log_std_t, prior_mean_t, prior_std_t)
-    L_zs = KLD(mean_s, log_std_s, prior_mean_s, prior_std_s)
+    L_zt = KLD(mean_t, log_std_t, prior_mean_t, prior_cov_t)
+    L_zs = KLD(mean_s, log_std_s, prior_mean_s, prior_cov_s)
     L_od = L_od(L_zt,L_zs)
 
     z_1, z_2 = reparameterization(mean_t, mean_s, log_std_t, log_std_s)
