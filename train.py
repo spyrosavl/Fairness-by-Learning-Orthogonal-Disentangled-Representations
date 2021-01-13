@@ -9,6 +9,8 @@ import model.model as module_arch
 from parse_config import ConfigParser
 from trainer import Trainer
 from utils import prepare_device
+from data_loader.data_loaders import GermanCreditDatasetOneHot
+from torch.utils.data import DataLoader
 
 
 # fix random seeds for reproducibility
@@ -21,6 +23,7 @@ np.random.seed(SEED)
 def main(config):
     logger = config.get_logger('train')
 
+    import pdb; pdb.set_trace()
     # setup data_loader instances
     data_loader = config.init_obj('data_loader', module_data)
     valid_data_loader = data_loader.split_validation()
@@ -71,3 +74,4 @@ if __name__ == '__main__':
     ]
     config = ConfigParser.from_args(args, options)
     main(config)
+
