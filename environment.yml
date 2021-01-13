@@ -7,6 +7,8 @@ dependencies:
   - pip=20.2.4
   - pytorch=1.6.0
   - torchvision=0.7.0
+  - scikit-learn
+  - torchtext
   - pip:
     - pytorch-lightning==1.0.3
     - torchtext==0.7.0

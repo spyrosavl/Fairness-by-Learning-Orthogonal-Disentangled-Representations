@@ -1,15 +1,15 @@
 {
-    "name": "Mnist_LeNet",
+    "name": "Adult",
     "n_gpu": 1,
 
     "arch": {
-        "type": "MnistModel",
+        "type": "Tabular_ModelEncoder",
         "args": {}
     },
     "data_loader": {
-        "type": "MnistDataLoader",
+        "type": "AdultDatasetOneHot",
         "args":{
-            "data_dir": "data/",
+            "data_dir": "data/adult/adult.data",
             "batch_size": 128,
             "shuffle": true,
             "validation_split": 0.1,
