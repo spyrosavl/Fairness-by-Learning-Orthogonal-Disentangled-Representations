@@ -171,6 +171,15 @@ class AdultDatasetOneHot(Dataset):
 
     def __len__(self):
         return len(self.rows)
+    
+    def __getitem__(self, idx):
+        preprocessed_data = self.features[idx]
+        if self.text_transforms is not None:
+            preprocessed_data = self.text_transforms(preprocessed_data)
+        label = np.array(0) if '<=50K' in self.targets[idx] else np.array(1)
+        sensitive = self.sensitive[idx]
+        targets = np.hstack((sensitive, label))
+        return idx, (preprocessed_data, targets)
 
     # def get_data(self, _file):
     #     rows=[];  targets=[]; sensitive=[]

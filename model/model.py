@@ -26,7 +26,7 @@ class Tabular_ModelEncoder(BaseModel):
         self.act_f = nn.ReLU() 
     
     def forward(self, x):
-        
+        x = x.float()
         #Output of shared layers followed by the activation
         out_shared = self.act_f(self.shared_model(x))
         
@@ -88,8 +88,3 @@ class Tabular_ModelDecoder(BaseModel):
         s_zs = self.output_1(out_2)
 
         return y_zt, s_zt, s_zs
-
-
-
-
-

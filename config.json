@@ -5,15 +5,15 @@
     "arch": {
         "type": "Tabular_ModelEncoder",
         "args": {
-            "input_dim" : 5,
-            "hidden_dim" : 5,
+            "input_dim" : 128,
+            "hidden_dim" : 256,
             "z_dim" : 2
         }
     },
     "data_loader": {
-        "type": "AdultDatasetOneHot",
+        "type": "AdultDataLoader",
         "args":{
-            "data_dir": "data/adult/adult.data",
+            "data_dir": "data/adult/",
             "batch_size": 128,
             "shuffle": true,
             "validation_split": 0.1,

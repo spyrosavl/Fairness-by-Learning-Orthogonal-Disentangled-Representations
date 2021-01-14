@@ -23,7 +23,7 @@ np.random.seed(SEED)
 def main(config):
     logger = config.get_logger('train')
 
-    import pdb; pdb.set_trace()
+    #import pdb; pdb.set_trace()
     # setup data_loader instances
     data_loader = config.init_obj('data_loader', module_data)
     valid_data_loader = data_loader.split_validation()
