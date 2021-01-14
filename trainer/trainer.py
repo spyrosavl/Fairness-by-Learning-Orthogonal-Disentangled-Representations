@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torchvision.utils import make_grid
 from base import BaseTrainer
-from utils import inf_loop, MetricTracker
+from utils import inf_loop, MetricTracker, Criterion
 
 
 class Trainer(BaseTrainer):
@@ -14,6 +14,14 @@ class Trainer(BaseTrainer):
         super().__init__(model, criterion, metric_ftns, optimizer, config)
         self.config = config
         self.device = device
+        
+        self.lambda_e = config.get_logger('trainer', config['trainer']['lambda_e'])
+        self.lambda_od = config.get_logger('trainer', config['trainer']['lambda_od'])
+        self.gamma_e = config.get_logger('trainer', config['trainer']['gamma_e'])
+        self.gamma_od = config.get_logger('trainer', config['trainer']['gamma_od'])
+        self.step_size = config.get_logger('trainer', config['trainer']['step_size'])
+
+
         self.data_loader = data_loader
         if len_epoch is None:
             # epoch-based training
@@ -30,6 +38,8 @@ class Trainer(BaseTrainer):
         self.train_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
         self.valid_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
 
+        self.criterion = Criterion(self.lambda_e, self.lambda_od, self.gamma_e, self.gamma_od, self.step_size)
+
     def _train_epoch(self, epoch):
         """
         Training logic for an epoch
@@ -41,11 +51,11 @@ class Trainer(BaseTrainer):
         self.model.train()
         self.train_metrics.reset()
         for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
-            data, sensitive, target = data.to(self.device), sensitive.to(self.device), target[0].to(self.device)
+            data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
 
             self.optimizer.zero_grad()
             output = self.model(data)
-            loss = self.criterion(output, target)
+            loss = self.criterion(output, target, sensitive, batch_idx)
             loss.backward()
             self.optimizer.step()
 

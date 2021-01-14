@@ -24,7 +24,7 @@ class TabularModel(BaseModel):
         mean_t, mean_s, log_std_t, log_std_s = self.encoder(x)
         z1, z2 = reparameterization(mean_t, mean_s, log_std_t, log_std_s)
         y_zt, s_zt, s_zs = self.decoder(z1, z2) 
-        return y_zt, s_zt, s_zs
+        return (mean_t, mean_s, log_std_t, log_std_s), (y_zt, s_zt, s_zs)
 
 
 class Tabular_ModelEncoder(BaseModel):

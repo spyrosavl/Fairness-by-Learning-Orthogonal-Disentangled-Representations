@@ -7,8 +7,10 @@ def nll_loss(output, target):
     return F.nll_loss(output, target)
 
 def KLD(enc_mean, enc_log_std, prior_mean, prior_cov):
+
     prior_log_det_cov = torch.log(torch.det(prior_cov))
 
+    import pdb; pdb.set_trace()
     enc_var = torch.exp(2 * enc_log_std)
     enc_cov = torch.diag(enc_var).float()
     

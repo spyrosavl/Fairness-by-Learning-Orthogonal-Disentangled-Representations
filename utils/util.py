@@ -1,6 +1,9 @@
 import json
 import torch
+
 import pandas as pd
+import torch.nn as nn
+
 from pathlib import Path
 from itertools import repeat
 from collections import OrderedDict
@@ -73,8 +76,45 @@ def reparameterization(mean_t, mean_s, log_std_t, log_std_s):
     z2 = mean_s + torch.exp(log_std_s) * torch.normal(torch.from_numpy(np.array([1,0]).T), torch.eye(2))
     return z1, z2
 
+
+
+class Criterion(nn.Module):
+    def __init__(self, lambda_e, lambda_od, gamma_e, gamma_od, step_size):
+        super(Criterion, self).__init__()
+        self.lambda_e = lambda_e
+        self.lambda_od = lambda_od
+        self.gamma_e = gamma_e
+        self.gamma_od = gamma_od
+        self.step_size = step_size
+
+        self.bce = nn.BCEWithLogitsLoss()
+        #TODO tensors through which we have to back propagate have to have require_grad = True (and be of type Parameter?)
+
+    def forward(self, inputs, target, sensitive, current_step):
+        mean_t, mean_s, log_std_t, log_std_s = inputs[0]
+        y_zt, s_zt, s_zs = inputs[1]
+
+        L_t = self.bce(y_zt, target[:,None].float())
+        L_s = self.bce(s_zt, sensitive.float())
+        Loss_e = L_e(s_zs)
+
+        import pdb; pdb.set_trace()
+        prior_mean_t = torch.from_numpy(np.array([0,1]).T)
+        prior_cov_t = torch.eye(2)
+        prior_mean_s = torch.from_numpy(np.array([1,0]).T)
+        prior_cov_s = torch.eye(2)
+        
+        L_zt = KLD(mean_t, log_std_t, prior_mean_t, prior_cov_t)
+        L_zs = KLD(mean_s, log_std_s, prior_mean_s, prior_cov_s)
+
+        lambda_e = self.lambda_e * self.gamma_e ** (current_step/self.step_size)
+        lambda_od = self.lambda_od * self.gamma_od ** (current_step/self.step_size)
+        Loss = L_t + L_s + lambda_e * Loss_e + lambda_od * (L_zt + L_zs)
+
+
+
 def loss_forward(data_input):
-    mean_t, mean_s, log_std_t, log_std_s = Tabular_ModelEncoder().forward(data_input)
+#    mean_t, mean_s, log_std_t, log_std_s = Tabular_ModelEncoder().forward(data_input)
 
     prior_mean_t = torch.from_numpy(np.array([0,1]).T)
     prior_cov_t = torch.eye(2)
