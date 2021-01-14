@@ -9,24 +9,24 @@ class Tabular_ModelEncoder(BaseModel):
         super(Tabular_ModelEncoder,self).__init__()
         
         #Shared encoding layers of the model
-        self.shared_model = nn.Linear(input_dim, hidden_dims)
+        self.shared_model = nn.Linear(input_dim, hidden_dim)
         
         #Different encoding layers
         self.encoder_1 = nn.Linear(hidden_dim, hidden_dim)
         self.encoder_2 = nn.Linear(hidden_dim, hidden_dim)
 
         #Output layers for each encoder
-        self.mean_encoder_1 = nn.Linear(hidden_dims, z_dim)
-        self.log_std_1      = nn.Linear(hidden_dims, z_dim)
+        self.mean_encoder_1 = nn.Linear(hidden_dim, z_dim)
+        self.log_std_1      = nn.Linear(hidden_dim, z_dim)
 
-        self.mean_encoder_2 = nn.Linear(hidden_dims, z_dim)
-        self.log_std_2      = nn.Linear(hidden_dims, z_dim)
+        self.mean_encoder_2 = nn.Linear(hidden_dim, z_dim)
+        self.log_std_2      = nn.Linear(hidden_dim, z_dim)
 
         #Activation function
         self.act_f = nn.ReLU() 
     
     def forward(self, x):
-        
+        x = x.float()
         #Output of shared layers followed by the activation
         out_shared = self.act_f(self.shared_model(x))
         
@@ -74,11 +74,13 @@ class Tabular_ModelDecoder(BaseModel):
     
     def forward(self, out_1, out_2):
         
+        out_1 = z_1
         for layers_1 in self.Decoder_1:
             out_1 = layers_1(out_1)
         y_zt = self.output_1(out_1)
             
-
+        out_1 = z_1
+        out_2 = z_2
         for layers_2 in self.Decoder_2:
             out_1 = layers_2(out_1)
             out_2 = layers_2(out_2)
@@ -86,8 +88,3 @@ class Tabular_ModelDecoder(BaseModel):
         s_zs = self.output_1(out_2)
 
         return y_zt, s_zt, s_zs
-
-
-
-
-

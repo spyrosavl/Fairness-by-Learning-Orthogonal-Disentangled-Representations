@@ -1,16 +1,20 @@
 {
-    "name": "Mnist_LeNet",
+    "name": "Adult",
     "n_gpu": 1,
 
     "arch": {
-        "type": ["Tabular_ModelEncoder", "Tabular_ModelDecoder"],
-        "args": {}
+        "type": "Tabular_ModelEncoder",
+        "args": {
+            "input_dim" : 128,
+            "hidden_dim" : 256,
+            "z_dim" : 2
+        }
     },
     "data_loader": {
         "type": "GermanDataLoader",
         "args":{
-            "data_dir": "data/",
-            "batch_size": 16,
+            "data_dir": "data/adult/",
+            "batch_size": 128,
             "shuffle": true,
             "validation_split": 0.1,
             "num_workers": 2
