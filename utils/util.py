@@ -98,7 +98,6 @@ class Criterion(nn.Module):
         L_s = self.bce(s_zt, sensitive.float())
         Loss_e = L_e(s_zs)
 
-        import pdb; pdb.set_trace()
         prior_mean_t = torch.from_numpy(np.array([0,1]).T)
         prior_cov_t = torch.eye(2)
         prior_mean_s = torch.from_numpy(np.array([1,0]).T)

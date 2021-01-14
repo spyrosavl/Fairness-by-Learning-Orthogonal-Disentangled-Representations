@@ -53,7 +53,7 @@ def main(config):
                       valid_data_loader=valid_data_loader,
                       lr_scheduler=lr_scheduler)
 
-    import pdb; pdb.set_trace()
+    
     trainer.train()
 
 
