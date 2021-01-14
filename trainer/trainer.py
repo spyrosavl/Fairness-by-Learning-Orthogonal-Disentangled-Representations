@@ -15,12 +15,12 @@ class Trainer(BaseTrainer):
         self.config = config
         self.device = device
         
-        self.lambda_e = config.get_logger('trainer', config['trainer']['lambda_e'])
-        self.lambda_od = config.get_logger('trainer', config['trainer']['lambda_od'])
-        self.gamma_e = config.get_logger('trainer', config['trainer']['gamma_e'])
-        self.gamma_od = config.get_logger('trainer', config['trainer']['gamma_od'])
-        self.step_size = config.get_logger('trainer', config['trainer']['step_size'])
-
+        self.lambda_e = config['trainer']['lambda_e']
+        self.lambda_od = config['trainer']['lambda_od']
+        self.gamma_e = config['trainer']['gamma_e']
+        self.gamma_od = config['trainer']['gamma_od']
+        self.step_size = config['trainer']['step_size']
+#        import pdb; pdb.set_trace()
 
         self.data_loader = data_loader
         if len_epoch is None:
