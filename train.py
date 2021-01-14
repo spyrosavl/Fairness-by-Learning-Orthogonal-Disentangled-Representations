@@ -9,6 +9,9 @@ import model.model as module_arch
 from parse_config import ConfigParser
 from trainer import Trainer
 from utils import prepare_device
+from data_loader.data_loaders import CIFAR10DataLoader
+from data_loader.data_loaders import CIFAR100DataLoader
+from torch.utils.data import DataLoader
 
 
 # fix random seeds for reproducibility
