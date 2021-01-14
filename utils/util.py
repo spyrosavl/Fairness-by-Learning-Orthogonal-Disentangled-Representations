@@ -106,9 +106,8 @@ class Criterion(nn.Module):
         L_zt = KLD(mean_t, log_std_t, prior_mean_t, prior_cov_t)
         L_zs = KLD(mean_s, log_std_s, prior_mean_s, prior_cov_s)
 
-        import pdb; pdb.set_trace()
-        lambda_e = self.lambda_e * self.gamma_e ** (current_step/int(self.step_size))
-        lambda_od = self.lambda_od * self.gamma_od ** (current_step/int(self.step_size))
+        lambda_e = self.lambda_e * self.gamma_e ** (current_step/self.step_size)
+        lambda_od = self.lambda_od * self.gamma_od ** (current_step/self.step_size)
         Loss = L_t + L_s + lambda_e * Loss_e + lambda_od * (L_zt + L_zs)
         return Loss
 
