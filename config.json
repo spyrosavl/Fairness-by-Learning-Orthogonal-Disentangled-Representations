@@ -7,7 +7,7 @@
         "args": {}
     },
     "data_loader": {
-        "type": "AdultDataLoader",
+        "type": "GermanDataLoader",
         "args":{
             "data_dir": "data/",
             "batch_size": 16,
