@@ -72,14 +72,13 @@ class Tabular_ModelDecoder(BaseModel):
         self.Decoder_1 = nn.ModuleList(self.layers_1)
         self.Decoder_2 = nn.ModuleList(self.layers_2)
     
-    def forward(self, z_1, z_2):
+    def forward(self, out_1, out_2):
         
         out_1 = z_1
         for layers_1 in self.Decoder_1:
             out_1 = layers_1(out_1)
         y_zt = self.output_1(out_1)
             
-
         out_1 = z_1
         out_2 = z_2
         for layers_2 in self.Decoder_2:
