@@ -3,17 +3,19 @@
     "n_gpu": 1,
 
     "arch": {
-        "type": "Tabular_ModelEncoder",
+        "type": "TabularModel",
         "args": {
-            "input_dim" : 128,
-            "hidden_dim" : 256,
-            "z_dim" : 2
+            "input_dim" : 61,
+            "hidden_dim" : 30,
+            "z_dim" : 2,
+            "target_classes" : 1,
+            "sensitive_classes" : 4 
         }
     },
     "data_loader": {
         "type": "GermanDataLoader",
         "args":{
-            "data_dir": "data/adult/",
+            "data_dir": "data/",
             "batch_size": 128,
             "shuffle": true,
             "validation_split": 0.1,

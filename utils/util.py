@@ -71,7 +71,7 @@ class MetricTracker:
 def reparameterization(mean_t, mean_s, log_std_t, log_std_s):
     z1 = mean_t + torch.exp(log_std_t) * torch.normal(torch.from_numpy(np.array([0,1]).T), torch.eye(2))
     z2 = mean_s + torch.exp(log_std_s) * torch.normal(torch.from_numpy(np.array([1,0]).T), torch.eye(2))
-    return z1,z2
+    return z1, z2
 
 def loss_forward(data_input):
     mean_t, mean_s, log_std_t, log_std_s = Tabular_ModelEncoder().forward(data_input)
