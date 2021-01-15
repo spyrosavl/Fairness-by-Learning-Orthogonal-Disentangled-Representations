@@ -67,7 +67,7 @@ class GermanCreditDatasetOneHot(Dataset):
           for l in lines:
             r = l.split()
             rows.append(r[:-1])
-            targets.append(r[-1])
+            targets.append(int(r[-1]))
             sensitive.append(r[8])
 
         cat = np.unique(sensitive)

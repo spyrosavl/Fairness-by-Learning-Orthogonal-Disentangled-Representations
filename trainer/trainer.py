@@ -47,7 +47,6 @@ class Trainer(BaseTrainer):
         :param epoch: Integer, current training epoch.
         :return: A log that contains average loss and metric in this epoch.
         """
-        #import pdb; pdb.set_trace()
         self.model.train()
         self.train_metrics.reset()
         for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
@@ -97,6 +96,7 @@ class Trainer(BaseTrainer):
                 loss = self.criterion(output, target, sensitive, batch_idx)
 
                 z_t = output[2][0]
+                import pdb; pdb.set_trace()
                 t_clf = LogisticRegression().fit(z_t, target)
                 t_predictions = t_clf.predict(z_t)
                 s_clf = LogisticRegression().fit(z_t, sensitive)
