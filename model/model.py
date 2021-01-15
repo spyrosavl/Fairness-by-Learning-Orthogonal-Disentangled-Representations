@@ -21,10 +21,11 @@ class TabularModel(BaseModel):
 
 
     def forward(self, x):
+        import pdb; pdb.set_trace()
         mean_t, mean_s, log_std_t, log_std_s = self.encoder(x)
         z1, z2 = reparameterization(mean_t, mean_s, log_std_t, log_std_s)
         y_zt, s_zt, s_zs = self.decoder(z1, z2) 
-        return (mean_t, mean_s, log_std_t, log_std_s), (y_zt, s_zt, s_zs)
+        return (mean_t, mean_s, log_std_t, log_std_s), (y_zt, s_zt, s_zs), (z1, z2)
 
 
 class Tabular_ModelEncoder(BaseModel):
@@ -51,6 +52,7 @@ class Tabular_ModelEncoder(BaseModel):
         self.act_f = nn.ReLU() 
     
     def forward(self, x):
+        import pdb; pdb.set_trace()
         x = x.float()
         #Output of shared layers followed by the activation
         out_shared = self.act_f(self.shared_model(x))
