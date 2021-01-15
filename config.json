@@ -6,7 +6,7 @@
         "type": "TabularModel",
         "args": {
             "input_dim" : 61,
-            "hidden_dim" : 30,
+            "hidden_dim" : 64,
             "z_dim" : 2,
             "target_classes" : 1,
             "sensitive_classes" : 2
@@ -16,7 +16,7 @@
         "type": "GermanDataLoader",
         "args":{
             "data_dir": "data/",
-            "batch_size": 128,
+            "batch_size": 32,
             "shuffle": true,
             "validation_split": 0.1,
             "num_workers": 2
@@ -26,7 +26,7 @@
         "type": "Adam",
         "args":{
             "lr": 0.001,
-            "weight_decay": 0,
+            "weight_decay": 0.0001,
             "amsgrad": true
         }
     },
@@ -42,7 +42,7 @@
         }
     },
     "trainer": {
-        "epochs": 100,
+        "epochs": 40,
 
         "save_dir": "saved/",
         "save_period": 1,
@@ -53,10 +53,10 @@
 
         "tensorboard": true,
 
-        "lambda_e" : 1,
-        "lambda_od" : 2,
+        "lambda_e" : 0.5,
+        "lambda_od" : 0.5,
         "gamma_e" : 1,
-        "gamma_od" : 2,
+        "gamma_od" : 1,
         "step_size" : 1
  
 

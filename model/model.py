@@ -17,7 +17,7 @@ class TabularModel(BaseModel):
         super(TabularModel, self).__init__()
 
         self.encoder = Tabular_ModelEncoder(input_dim, hidden_dim, z_dim)
-        self.decoder = Tabular_ModelDecoder(z_dim, [hidden_dim], target_classes, sensitive_classes)
+        self.decoder = Tabular_ModelDecoder(z_dim, [hidden_dim, hidden_dim], target_classes, sensitive_classes)
 
 
     def forward(self, x):

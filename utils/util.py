@@ -97,7 +97,6 @@ class Criterion(nn.Module):
         uniform = torch.rand(size=s_zs.size())
         Loss_e = self.kld(s_zs, uniform)
 
-
         m_t = MultivariateNormal(torch.tensor([0.,1.]), torch.eye(2))
         m_s = MultivariateNormal(torch.tensor([1.,0.]), torch.eye(2))
 
