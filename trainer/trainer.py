@@ -39,7 +39,8 @@ class Trainer(BaseTrainer):
         self.valid_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
 
         self.criterion = Criterion(self.lambda_e, self.lambda_od, self.gamma_e, self.gamma_od, self.step_size)
-        self.clf = LogisticRegression()
+        self.clf_t = LogisticRegression()
+        self.clf_s = LogisticRegression()
 
     def _train_epoch(self, epoch):
         """
@@ -50,6 +51,7 @@ class Trainer(BaseTrainer):
         """
         self.model.train()
         self.train_metrics.reset()
+        losses=[]
         for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
             data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
 
@@ -57,8 +59,9 @@ class Trainer(BaseTrainer):
             output = self.model(data)
             loss = self.criterion(output, target, sensitive, batch_idx)
             loss.backward()
+            losses.append(loss)
             self.optimizer.step()
-            
+            #import pdb; pdb.set_trace()
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
             self.train_metrics.update('loss', loss.item())
 
@@ -76,8 +79,8 @@ class Trainer(BaseTrainer):
             val_log = self._valid_epoch(epoch)
             log.update(**{'val_'+k : v for k, v in val_log.items()})
 
-        if self.lr_scheduler is not None:
-            self.lr_scheduler.step()
+       # if self.lr_scheduler is not None:
+       #     self.lr_scheduler.step()
         return log
 
     def _valid_epoch(self, epoch):
@@ -92,15 +95,14 @@ class Trainer(BaseTrainer):
         with torch.no_grad():
             for batch_idx, (data, sensitive, target) in enumerate(self.valid_data_loader):
                 data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
-                #import pdb; pdb.set_trace()
                 output = self.model(data)
                 loss = self.criterion(output, target, sensitive, batch_idx)
 
                 z_t = output[2][0]
-                t_clf = self.clf.fit(z_t, target)
+                t_clf = self.clf_t.fit(z_t, target)
                 t_predictions = torch.tensor(t_clf.predict(z_t))
                 s = torch.argmax(sensitive, dim=1)
-                s_clf = self.clf.fit(z_t, s)
+                s_clf = self.clf_s.fit(z_t, s)
                 s_predictions = torch.tensor(s_clf.predict(z_t))
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
