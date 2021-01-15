@@ -71,12 +71,6 @@ class MetricTracker:
     def result(self):
         return dict(self._data.average)
 
-def reparameterization(mean_t, mean_s, log_std_t, log_std_s):
-    z1 = mean_t + torch.exp(log_std_t) * torch.normal(torch.from_numpy(np.array([0,1]).T), torch.eye(2))
-    z2 = mean_s + torch.exp(log_std_s) * torch.normal(torch.from_numpy(np.array([1,0]).T), torch.eye(2))
-    return z1, z2
-
-
 
 class Criterion(nn.Module):
     def __init__(self, lambda_e, lambda_od, gamma_e, gamma_od, step_size):
@@ -88,15 +82,21 @@ class Criterion(nn.Module):
         self.step_size = step_size
 
         self.bce = nn.BCEWithLogitsLoss()
+        self.kld = nn.KLDivLoss(size_average=False)
         #TODO tensors through which we have to back propagate have to have require_grad = True (and be of type Parameter?)
 
     def forward(self, inputs, target, sensitive, current_step):
         mean_t, mean_s, log_std_t, log_std_s = inputs[0]
         y_zt, s_zt, s_zs = inputs[1]
 
+        #import pdb; pdb.set_trace()
         L_t = self.bce(y_zt, target[:,None].float())
         L_s = self.bce(s_zt, sensitive.float())
-        Loss_e = L_e(s_zs)
+#        Loss_e = L_e(s_zs)
+        uniform = torch.rand(size=s_zs.size())
+        Loss_e = self.kld(s_zs, uniform)
+
+
 
         prior_mean_t = torch.from_numpy(np.array([0,1]).T)
         prior_cov_t = torch.eye(2)

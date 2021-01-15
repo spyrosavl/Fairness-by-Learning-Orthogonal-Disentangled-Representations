@@ -30,6 +30,7 @@ def KLD(enc_mean, enc_log_std, prior_mean, prior_cov):
     return KLD
 
 def L_e(sen_dis_out):
+    import pdb; pdb.set_trace()
     L_e = torch.sum(sen_dis_out * torch.log(sen_dis_out))
     return L_e
 

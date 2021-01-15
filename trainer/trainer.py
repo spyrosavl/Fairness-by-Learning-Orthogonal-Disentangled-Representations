@@ -20,7 +20,6 @@ class Trainer(BaseTrainer):
         self.gamma_e = config['trainer']['gamma_e']
         self.gamma_od = config['trainer']['gamma_od']
         self.step_size = config['trainer']['step_size']
-#        import pdb; pdb.set_trace()
 
         self.data_loader = data_loader
         if len_epoch is None:
@@ -47,7 +46,7 @@ class Trainer(BaseTrainer):
         :param epoch: Integer, current training epoch.
         :return: A log that contains average loss and metric in this epoch.
         """
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         self.model.train()
         self.train_metrics.reset()
         for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
@@ -58,7 +57,7 @@ class Trainer(BaseTrainer):
             loss = self.criterion(output, target, sensitive, batch_idx)
             loss.backward()
             self.optimizer.step()
-
+            
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
             self.train_metrics.update('loss', loss.item())
             #for met in self.metric_ftns:
@@ -99,9 +98,6 @@ class Trainer(BaseTrainer):
 
                 output = self.model(data)
                 loss = self.criterion(output, target, sensitive, batch_idx)
-
-                
-
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                 self.valid_metrics.update('loss', loss.item())
