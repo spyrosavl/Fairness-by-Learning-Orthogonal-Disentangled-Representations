@@ -92,7 +92,7 @@ class Trainer(BaseTrainer):
         with torch.no_grad():
             for batch_idx, (data, sensitive, target) in enumerate(self.valid_data_loader):
                 data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
-                import pdb; pdb.set_trace()
+                #import pdb; pdb.set_trace()
                 output = self.model(data)
                 loss = self.criterion(output, target, sensitive, batch_idx)
 

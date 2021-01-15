@@ -4,7 +4,7 @@ import numpy as np
 from base import BaseModel
 #from utils.util import reparameterization
 
-
+@torch.no_grad()
 def reparameterization(mean_t, mean_s, log_std_t, log_std_s):
     z1 = mean_t + torch.exp(log_std_t - torch.max(log_std_t)) @ torch.normal(torch.from_numpy(np.array([0.,1.]).T).float(), torch.eye(2))
     z2 = mean_s + torch.exp(log_std_s - torch.max(log_std_s)) @ torch.normal(torch.from_numpy(np.array([1.,0.]).T).float(), torch.eye(2))
@@ -21,7 +21,7 @@ class TabularModel(BaseModel):
 
 
     def forward(self, x):
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         mean_t, mean_s, log_std_t, log_std_s = self.encoder(x)
         z1, z2 = reparameterization(mean_t, mean_s, log_std_t, log_std_s)
         y_zt, s_zt, s_zs = self.decoder(z1, z2) 
@@ -52,7 +52,7 @@ class Tabular_ModelEncoder(BaseModel):
         self.act_f = nn.ReLU() 
     
     def forward(self, x):
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         x = x.float()
         #Output of shared layers followed by the activation
         out_shared = self.act_f(self.shared_model(x))
