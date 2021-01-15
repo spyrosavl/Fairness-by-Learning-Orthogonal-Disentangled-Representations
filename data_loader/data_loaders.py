@@ -68,8 +68,11 @@ class GermanCreditDatasetOneHot(Dataset):
             r = l.split()
             rows.append(r[:-1])
             targets.append(int(r[-1]))
-            sensitive.append(r[8])
-
+            if r[8] == 'A91' or r[8] == 'A93' or r[8] == 'A94':
+                sensitive.append(0)
+            else:
+                sensitive.append(1)
+#            sensitive.append(r[8])
         cat = np.unique(sensitive)
         cat = list(set(cat))
         cat.sort()

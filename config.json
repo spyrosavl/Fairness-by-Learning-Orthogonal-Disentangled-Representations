@@ -9,7 +9,7 @@
             "hidden_dim" : 30,
             "z_dim" : 2,
             "target_classes" : 1,
-            "sensitive_classes" : 4 
+            "sensitive_classes" : 2
         }
     },
     "data_loader": {
