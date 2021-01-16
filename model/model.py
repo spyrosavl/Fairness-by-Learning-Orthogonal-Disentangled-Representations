@@ -10,7 +10,6 @@ def reparameterization(mean_t, mean_s, log_std_t, log_std_s):
 
     return z1, z2
 
-
 class TabularModel(BaseModel):
 
     def __init__(self, input_dim, hidden_dim, z_dim, target_classes, sensitive_classes):

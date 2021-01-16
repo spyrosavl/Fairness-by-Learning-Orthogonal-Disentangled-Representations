@@ -112,11 +112,11 @@ class Criterion(nn.Module):
         L_zt = self.kld(z1, prior_t)
         L_zs = self.kld(z2, prior_s)
  
-        print('L_t: ', L_t)
-        print('L_s: ', L_s)
-        print('Loss_e: ', Loss_e)
-        print('L_zt: ', L_zt)
-        print('L_st: ', L_zs)
+        # print('L_t: ', L_t)
+        # print('L_s: ', L_s)
+        # print('Loss_e: ', Loss_e)
+        # print('L_zt: ', L_zt)
+        # print('L_st: ', L_zs)
 
        # import pdb; pdb.set_trace()
         lambda_e = self.lambda_e * self.gamma_e ** (current_step/self.step_size)

@@ -8,10 +8,10 @@ class BaseDataLoader(DataLoader):
     """
     Base class for all data loaders
     """
-    def __init__(self, dataset, batch_size, shuffle, validation_split, num_workers, collate_fn=default_collate):
+    def __init__(self, dataset, batch_size, shuffle, validation_split, num_workers, collate_fn=default_collate, validation_appended_len=None):
         self.validation_split = validation_split
         self.shuffle = shuffle
-
+        self.validation_appended_len = validation_appended_len #if not None, contains no of validation samples appended in the end of dataset
         self.batch_idx = 0
         self.n_samples = len(dataset)
 
@@ -33,17 +33,23 @@ class BaseDataLoader(DataLoader):
         idx_full = np.arange(self.n_samples)
 
         np.random.seed(0)
-        np.random.shuffle(idx_full)
+        
+        if self.validation_appended_len is None:
+            np.random.shuffle(idx_full)
+            if isinstance(split, int):
+                assert split > 0
+                assert split < self.n_samples, "validation set size is configured to be larger than entire dataset."
+                len_valid = split
+            else:
+                len_valid = int(self.n_samples * split)
 
-        if isinstance(split, int):
-            assert split > 0
-            assert split < self.n_samples, "validation set size is configured to be larger than entire dataset."
-            len_valid = split
+            valid_idx = idx_full[0:len_valid]
+            train_idx = np.delete(idx_full, np.arange(0, len_valid))
         else:
-            len_valid = int(self.n_samples * split)
-
-        valid_idx = idx_full[0:len_valid]
-        train_idx = np.delete(idx_full, np.arange(0, len_valid))
+            #validation set is appended in the end of dataset
+            len_valid = self.validation_appended_len
+            valid_idx = idx_full[-len_valid:]
+            train_idx = idx_full[:-len_valid]
 
         train_sampler = SubsetRandomSampler(train_idx)
         valid_sampler = SubsetRandomSampler(valid_idx)

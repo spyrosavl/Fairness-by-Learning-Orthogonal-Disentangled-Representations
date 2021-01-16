@@ -39,7 +39,8 @@ class Trainer(BaseTrainer):
         self.valid_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
 
         self.criterion = Criterion(self.lambda_e, self.lambda_od, self.gamma_e, self.gamma_od, self.step_size)
-        self.clf = LogisticRegression()
+        self.target_clf = LogisticRegression()
+        self.sensitive_clf = LogisticRegression()
 
     def _train_epoch(self, epoch):
         """
@@ -97,10 +98,10 @@ class Trainer(BaseTrainer):
                 loss = self.criterion(output, target, sensitive, batch_idx)
 
                 z_t = output[2][0]
-                t_clf = self.clf.fit(z_t, target)
+                t_clf = self.target_clf.fit(z_t, target)
                 t_predictions = torch.tensor(t_clf.predict(z_t))
                 s = torch.argmax(sensitive, dim=1)
-                s_clf = self.clf.fit(z_t, s)
+                s_clf = self.sensitive_clf.fit(z_t, s)
                 s_predictions = torch.tensor(s_clf.predict(z_t))
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
@@ -109,8 +110,8 @@ class Trainer(BaseTrainer):
                 self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_predictions, s))
 
         # add histogram of model parameters to the tensorboard
-        for name, p in self.model.named_parameters():
-            self.writer.add_histogram(name, p, bins='auto')
+        # for name, p in self.model.named_parameters():
+        #     self.writer.add_histogram(name, p, bins='auto')
         return self.valid_metrics.result()
 
     def _progress(self, batch_idx):
