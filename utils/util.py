@@ -1,11 +1,15 @@
 import json
 import torch
+
 import pandas as pd
+import torch.nn as nn
+
 from pathlib import Path
 from itertools import repeat
 from collections import OrderedDict
 from model.model import *
 from model.loss import *
+from torch.distributions.multivariate_normal import MultivariateNormal
 
 
 def ensure_dir(dirname):
@@ -68,36 +72,51 @@ class MetricTracker:
     def result(self):
         return dict(self._data.average)
 
-def reparameterization(mean_t, mean_s, log_std_t, log_std_s):
-    z1 = mean_t + torch.exp(log_std_t) * torch.normal(torch.from_numpy(np.array([0,1]).T), torch.eye(2))
-    z2 = mean_s + torch.exp(log_std_s) * torch.normal(torch.from_numpy(np.array([1,0]).T), torch.eye(2))
-    return z1,z2
 
-def loss_forward(data_input):
-    mean_t, mean_s, log_std_t, log_std_s = Tabular_ModelEncoder().forward(data_input)
+class Criterion(nn.Module):
+    def __init__(self, lambda_e, lambda_od, gamma_e, gamma_od, step_size):
+        super(Criterion, self).__init__()
+        self.lambda_e = lambda_e
+        self.lambda_od = lambda_od
+        self.gamma_e = gamma_e
+        self.gamma_od = gamma_od
+        self.step_size = step_size
 
-    prior_mean_t = torch.from_numpy(np.array([0,1]).T)
-    prior_cov_t = torch.eye(2)
-    prior_mean_s = torch.from_numpy(np.array([1,0]).T)
-    prior_cov_s = torch.eye(2)
+        self.bce = nn.BCEWithLogitsLoss()
+        self.kld = nn.KLDivLoss(reduction='batchmean')
+        #TODO tensors through which we have to back propagate have to have require_grad = True (and be of type Parameter?)
 
-    L_zt = KLD(mean_t, log_std_t, prior_mean_t, prior_cov_t)
-    L_zs = KLD(mean_s, log_std_s, prior_mean_s, prior_cov_s)
-    L_od = L_od(L_zt,L_zs)
+    def forward(self, inputs, target, sensitive, current_step):
+        mean_t, mean_s, log_std_t, log_std_s = inputs[0]
+        y_zt, s_zt, s_zs = inputs[1]
+        z1, z2 = inputs[2]
 
-    z_1, z_2 = reparameterization(mean_t, mean_s, log_std_t, log_std_s)
+        L_t = self.bce(y_zt, target[:,None].float())
+        L_s = self.bce(s_zt, sensitive.float())
+        #TODO maybe use torch.distributions.uniform.Uniform?
+        uniform = torch.rand(size=s_zs.size())
+        Loss_e = self.kld(s_zs, uniform)
 
-    y_zt, s_zt, s_zs = Tabular_ModelDecoder().forward(z_1, z_2)
-    
-    tar_cond = 'Not sure how these are implemented.It represents p(y|x)'
-    sen_cond = 'Not sure how these are implemented.It represents p(s|x)'
+        m_t = MultivariateNormal(torch.tensor([0.,1.]), torch.eye(2))
+        m_s = MultivariateNormal(torch.tensor([1.,0.]), torch.eye(2))
 
-    L_t = L_t(tar_cond, y_zt)
-    L_s = L_s(sen_cond, s_zs)
-    L_e = L_e(s_zt)
+        #TODO should the priors be the same for each loss computation?
+        # --> should we define them in init?        
+        prior_t=[]; prior_s=[]
+        for i in range(z1.shape[0]):
+            prior_t.append(m_t.sample())
+            prior_s.append(m_s.sample())
 
-    return L_od, L_t, L_s, L_e
+        prior_t = torch.stack(prior_t)
+        prior_s = torch.stack(prior_s)
 
+        L_zt = self.kld(z1, prior_t)
+        L_zs = self.kld(z2, prior_s)
+
+        lambda_e = self.lambda_e * self.gamma_e ** (current_step/self.step_size)
+        lambda_od = self.lambda_od * self.gamma_od ** (current_step/self.step_size)
+        Loss = L_t + L_s + lambda_e * Loss_e + lambda_od * (L_zt + L_zs)
+        return Loss
 
 
 
