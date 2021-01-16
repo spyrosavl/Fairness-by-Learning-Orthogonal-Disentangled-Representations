@@ -5,7 +5,7 @@
     "arch": {
         "type": "TabularModel",
         "args": {
-            "input_dim" : 61,
+            "input_dim" : 108,
             "hidden_dim" : 64,
             "z_dim" : 2,
             "target_classes" : 1,

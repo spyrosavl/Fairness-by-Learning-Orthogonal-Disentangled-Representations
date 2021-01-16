@@ -111,8 +111,8 @@ class Trainer(BaseTrainer):
                 self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_predictions, s))
 
         # add histogram of model parameters to the tensorboard
-        for name, p in self.model.named_parameters():
-            self.writer.add_histogram(name, p, bins='auto')
+        # for name, p in self.model.named_parameters():
+        #     self.writer.add_histogram(name, p, bins='auto')
         return self.valid_metrics.result()
 
     def _progress(self, batch_idx):
