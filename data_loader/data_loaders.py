@@ -181,62 +181,7 @@ class AdultDatasetOneHot(Dataset):
             preprocessed_data = self.text_transforms(preprocessed_data)
         label = np.array(0) if '<=50K' in self.targets[idx] else np.array(1)
         sensitive = self.sensitive[idx]
-        targets = np.hstack((sensitive, label))
-        return idx, (preprocessed_data, targets)
-
-    # def get_data(self, _file):
-    #     rows=[];  targets=[]; sensitive=[]
-    #     with open(_file) as txt_file:
-    #       lines = txt_file.readlines()
-    #       if lines[-1] == '\n':
-    #         lines = lines[:-1]
-    #       for l in lines:
-    #         r = l.split(",")
-    #         rows.append(r[:-1])
-    #         if len(r) > 1:
-    #           targets.append(r[-1])
-    #           sensitive.append(r[9])
-    #     cat = np.unique(sensitive)
-    #     cat = list(set(cat))
-    #     cat.sort()
-    #     one_hot = MultiLabelBinarizer(classes=cat).fit([cat])
-    #     sensitive = np.asarray(sensitive)
-    #     sensitive = one_hot.transform(sensitive[:,None])
-    #     return rows, targets, sensitive
-
-    # def get_onehot_attributes(self, rows, columns):
-    #   rows = np.asarray(rows)
-    #   features = None
-    #   for i in range(len(rows[0])):
-    #     if i in columns:
-    #       occ = rows[:,i]
-    #       cat = np.unique(occ)
-    #       cat = list(set(cat))
-    #       cat.sort()
-    #       one_hot = MultiLabelBinarizer(classes=cat).fit([cat])
-    #       transformed = one_hot.transform(occ[:,None])
-    #       if features is not None:
-    #         features = np.column_stack((features, transformed))
-    #       else:
-    #         features = transformed
-    #     else:
-    #       if features is not None:
-    #         features = np.column_stack((features, rows[:,i,None]))
-    #       else:
-    #         features = rows[:,i,None]
-    #     features = np.asarray([[int(i) for i in j] for j in features])        
-    #   return features
-
-    # def __len__(self):
-    #     return len(self.rows)
-
-    # def __getitem__(self, idx):
-    #     preprocessed_data = self.features[idx]
-    #     if self.text_transforms is not None:
-    #         preprocessed_data = self.text_transforms(preprocessed_data)
-    #     label = 0 if '<=50K' in self.targets[idx] else 1
-    #     sensitive = self.sensitive[idx]
-    #     return preprocessed_data, sensitive, label
+        return preprocessed_data, sensitive, label
 
 
 if __name__ == '__main__':

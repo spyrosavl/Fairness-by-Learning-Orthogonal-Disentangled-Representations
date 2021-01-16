@@ -1,5 +1,5 @@
 {
-    "name": "German",
+    "name": "Adult",
     "n_gpu": 1,
 
     "arch": {
@@ -13,9 +13,9 @@
         }
     },
     "data_loader": {
-        "type": "GermanDataLoader",
+        "type": "AdultDataLoader",
         "args":{
-            "data_dir": "data/",
+            "data_dir": "data/adult/",
             "batch_size": 32,
             "shuffle": true,
             "validation_split": 0.1,

@@ -4,12 +4,10 @@ import numpy as np
 from base import BaseModel
 #from utils.util import reparameterization
 
-@torch.no_grad()
 def reparameterization(mean_t, mean_s, log_std_t, log_std_s):
     z1 = mean_t + torch.exp(log_std_t - torch.max(log_std_t)) @ torch.normal(torch.from_numpy(np.array([0.,1.]).T).float(), torch.eye(2))
     z2 = mean_s + torch.exp(log_std_s - torch.max(log_std_s)) @ torch.normal(torch.from_numpy(np.array([1.,0.]).T).float(), torch.eye(2))
     return z1, z2
-
 
 class TabularModel(BaseModel):
 
