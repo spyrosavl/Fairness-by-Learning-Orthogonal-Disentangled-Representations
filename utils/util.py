@@ -93,7 +93,6 @@ class Criterion(nn.Module):
 
         L_t = self.bce(y_zt, target[:,None].float())
         L_s = self.bce(s_zt, sensitive.float())
-        #TODO maybe use torch.distributions.uniform.Uniform?
         uniform = torch.rand(size=s_zs.size())
         Loss_e = self.kld(s_zs, uniform)
 
@@ -101,7 +100,7 @@ class Criterion(nn.Module):
         m_s = MultivariateNormal(torch.tensor([1.,0.]), torch.eye(2))
 
         #TODO should the priors be the same for each loss computation?
-        # --> should we define them in init?        
+        # --> should we define them in init?       
         prior_t=[]; prior_s=[]
         for i in range(z1.shape[0]):
             prior_t.append(m_t.sample())
@@ -112,7 +111,14 @@ class Criterion(nn.Module):
 
         L_zt = self.kld(z1, prior_t)
         L_zs = self.kld(z2, prior_s)
+ 
+        print('L_t: ', L_t)
+        print('L_s: ', L_s)
+        print('Loss_e: ', Loss_e)
+        print('L_zt: ', L_zt)
+        print('L_st: ', L_zs)
 
+       # import pdb; pdb.set_trace()
         lambda_e = self.lambda_e * self.gamma_e ** (current_step/self.step_size)
         lambda_od = self.lambda_od * self.gamma_od ** (current_step/self.step_size)
         Loss = L_t + L_s + lambda_e * Loss_e + lambda_od * (L_zt + L_zs)
