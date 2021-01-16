@@ -115,18 +115,21 @@ class GermanCreditDatasetOneHot(Dataset):
 class AdultDataLoader(BaseDataLoader):
     def __init__(self, data_dir=None, batch_size=16, shuffle=False, validation_split=0.1, num_workers=2):
         trsfm = None #TODO
-        txt_file = 'adult.data' #TODO fix for test file
-        self.dataset = AdultDatasetOneHot(txt_file, data_dir, trsfm)
-        super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
+        training_file, test_file = 'adult.data', 'adult.test'
+        self.dataset = AdultDatasetOneHot(training_file, test_file, data_dir, trsfm)
+        super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers, validation_appended_len=self.dataset.validation_len)
 
 
 class AdultDatasetOneHot(Dataset):
-    def __init__(self, txt_file, data_dir=None, batch_size=16, shuffle=False, validation_split=0.1, num_workers=2):
-        self.txt_file = txt_file
+    def __init__(self, training_file, test_file, data_dir=None, batch_size=16, shuffle=False, validation_split=0.1, num_workers=2):
+        self.training_file, self.test_file = training_file, test_file
         self.data_dir = data_dir
         self.text_transforms = None
         self.categorical_columns = [1, 3, 5, 6, 7, 8, 9, 13]
-        self.rows, self.targets, self.sensitive = self.get_data(os.path.join(self.data_dir, self.txt_file))
+        self.rows, self.targets, self.sensitive = self.get_data(os.path.join(self.data_dir, self.training_file))
+        val_rows, val_targets, val_sensitive = self.get_data(os.path.join(self.data_dir, self.test_file))
+        self.rows += val_rows; self.targets += val_targets; self.sensitive = np.vstack((self.sensitive, val_sensitive)) #append validation set in the end
+        self.training_len, self.validation_len = len(self.rows), len(val_rows)
         self.features = self.get_onehot_attributes(self.rows, self.categorical_columns)
 
     def get_data(self, _file):
@@ -135,6 +138,8 @@ class AdultDatasetOneHot(Dataset):
           lines = txt_file.readlines()
           if lines[-1] == '\n':
             lines = lines[:-1]
+          if lines[0][0] == '|': #for adult test, remove first line
+            lines = lines[1:]
           for l in lines:
             r = l.split(",")
             rows.append(r[:-1])
