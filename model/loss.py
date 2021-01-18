@@ -30,7 +30,7 @@ def KLD(enc_mean, enc_log_std, prior_mean, prior_cov):
     return KLD
 
 def L_e(sen_dis_out):
-    L_e = torch.sum(sen_dis_out * torch.log(sen_dis_out))
+    L_e = torch.mean(torch.softmax(sen_dis_out, dim=1) * torch.log_softmax(sen_dis_out, dim=1))
     return L_e
 
 def L_t(tar_cond, tar_disc_out):
