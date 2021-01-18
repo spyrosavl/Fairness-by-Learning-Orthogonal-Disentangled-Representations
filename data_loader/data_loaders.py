@@ -93,10 +93,9 @@ class GermanCreditDatasetOneHot(Dataset):
           else:
             features = transformed
         else:
-#          import pdb; pdb.set_trace()
           features = np.column_stack((features, scale(rows[:,i,None])))
 #          features = np.column_stack((features, rows[:,i,None]))
-      features = np.asarray([[int(i) for i in j] for j in features])        
+#      features = np.asarray([[int(i) for i in j] for j in features])        
       return features
 
     def __len__(self):
@@ -165,15 +164,15 @@ class AdultDatasetOneHot(Dataset):
           one_hot = MultiLabelBinarizer(classes=cat).fit([cat])
           transformed = one_hot.transform(occ[:,None])
           if features is not None:
-            features = np.column_stack((features, transformed))
+              features = np.column_stack((features, transformed))
           else:
             features = transformed
         else:
           if features is not None:
-            features = np.column_stack((features, rows[:,i,None]))
+            features = np.column_stack((features, scale(rows[:,i,None].astype(int))))
           else:
-            features = rows[:,i,None]
-        features = np.asarray([[int(i) for i in j] for j in features])        
+            features = scale(rows[:,i,None].astype(int))
+#        features = np.asarray([[int(i) for i in j] for j in features])        
       return features
 
     def __len__(self):
