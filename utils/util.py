@@ -10,6 +10,7 @@ from collections import OrderedDict
 from model.model import *
 from model.loss import *
 from torch.distributions.multivariate_normal import MultivariateNormal
+from torch.distributions import Normal
 
 
 def ensure_dir(dirname):
@@ -102,15 +103,22 @@ class Criterion(nn.Module):
         #TODO should the priors be the same for each loss computation?
         # --> should we define them in init?       
         prior_t=[]; prior_s=[]
+        enc_dis_t=[]; enc_dis_s=[]
         for i in range(z1.shape[0]):
             prior_t.append(m_t.sample())
             prior_s.append(m_s.sample())
+            n_t = Normal(mean_t[i], torch.exp(log_std_t[i] - torch.max(log_std_t[i])))
+            n_s = Normal(mean_s[i], torch.exp(log_std_s[i] - torch.max(log_std_s[i])))
+            enc_dis_t.append(n_t.sample())
+            enc_dis_s.append(n_s.sample())
 
         prior_t = torch.stack(prior_t)
         prior_s = torch.stack(prior_s)
+        enc_dis_t = torch.stack(enc_dis_t)
+        enc_dis_s = torch.stack(enc_dis_s)
 
-        L_zt = self.kld(z1, prior_t)
-        L_zs = self.kld(z2, prior_s)
+        L_zt = self.kld(enc_dis_t, prior_t)
+        L_zs = self.kld(enc_dis_s, prior_s)
  
         # print('L_t: ', L_t)
         # print('L_s: ', L_s)

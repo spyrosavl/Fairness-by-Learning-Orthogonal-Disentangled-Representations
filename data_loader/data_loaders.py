@@ -6,7 +6,6 @@ from torch.utils.data import DataLoader, Dataset
 from base import BaseDataLoader
 from sklearn.preprocessing import MultiLabelBinarizer
 
-"""
 class CIFAR100DataLoader(BaseDataLoader):
     def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
         trsfm = transforms.Compose([
@@ -18,15 +17,14 @@ class CIFAR100DataLoader(BaseDataLoader):
 
 
 class CIFAR10DataLoader(BaseDataLoader):
-    def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
+    def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.1, num_workers=2, training=True):
         trsfm = transforms.Compose([
             transforms.ToTensor()
         ])
         self.data_dir = data_dir
         self.dataset = datasets.CIFAR10(self.data_dir, train=training, download=True, transform=trsfm)
         super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
-"""
-"""
+
 class MnistDataLoader(BaseDataLoader):
     
     ### MNIST data loading demo using BaseDataLoader
@@ -40,8 +38,6 @@ class MnistDataLoader(BaseDataLoader):
         self.dataset = datasets.MNIST(self.data_dir, train=training, download=True, transform=trsfm)
         print(self.dataset)
         super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
-"""
-
 
 class GermanDataLoader(BaseDataLoader):
     def __init__(self, data_dir=None, batch_size=16, shuffle=False, validation_split=0.1, num_workers=2):
