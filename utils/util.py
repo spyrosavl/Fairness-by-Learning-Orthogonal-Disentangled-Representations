@@ -95,7 +95,7 @@ class Criterion(nn.Module):
         L_t = self.bce(y_zt, target[:,None].float())
         L_s = self.bce(s_zt, sensitive.float())
         uniform = torch.rand(size=s_zs.size())
-        Loss_e = self.kld(s_zs, uniform)
+        Loss_e = self.kld(torch.nn.functional.log_softmax(s_zs, dim=1), uniform)
 
         m_t = MultivariateNormal(torch.tensor([0.,1.]), torch.eye(2))
         m_s = MultivariateNormal(torch.tensor([1.,0.]), torch.eye(2))
@@ -116,9 +116,10 @@ class Criterion(nn.Module):
         prior_s = torch.stack(prior_s)
         enc_dis_t = torch.stack(enc_dis_t)
         enc_dis_s = torch.stack(enc_dis_s)
+#        import pdb; pdb.set_trace()
 
-        L_zt = self.kld(enc_dis_t, prior_t)
-        L_zs = self.kld(enc_dis_s, prior_s)
+        L_zt = self.kld(torch.nn.functional.log_softmax(enc_dis_t, dim=1), prior_t)
+        L_zs = self.kld(torch.nn.functional.log_softmax(enc_dis_s, dim=1), prior_s)
  
         # print('L_t: ', L_t)
         # print('L_s: ', L_s)
