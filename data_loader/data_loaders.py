@@ -189,6 +189,6 @@ if __name__ == '__main__':
     adult_dataset = AdultDatasetOneHot('adult.data', './data/')
     german_dataset = GermanCreditDatasetOneHot('../data/german.data')
     german_dataloader = DataLoader(german_dataset, batch_size=16)
-    cifar10 = CIFAR10DataLoader('./', batch_size=16)
+    cifar10 = CIFAR10DataLoader('./', batch_size=64)
     cifar100 = CIFAR100DataLoader('./', batch_size=16)
 
