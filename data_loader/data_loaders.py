@@ -4,7 +4,8 @@ from torchvision import datasets, transforms
 import torchtext
 from torch.utils.data import DataLoader, Dataset
 from base import BaseDataLoader
-from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.preprocessing import MultiLabelBinarizer, scale
+
 
 class CIFAR100DataLoader(BaseDataLoader):
     def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
@@ -92,8 +93,9 @@ class GermanCreditDatasetOneHot(Dataset):
           else:
             features = transformed
         else:
-          features = np.column_stack((features, rows[:,i,None]))
-      features = np.asarray([[int(i) for i in j] for j in features])        
+          features = np.column_stack((features, scale(rows[:,i,None])))
+#          features = np.column_stack((features, rows[:,i,None]))
+#      features = np.asarray([[int(i) for i in j] for j in features])        
       return features
 
     def __len__(self):
@@ -162,15 +164,15 @@ class AdultDatasetOneHot(Dataset):
           one_hot = MultiLabelBinarizer(classes=cat).fit([cat])
           transformed = one_hot.transform(occ[:,None])
           if features is not None:
-            features = np.column_stack((features, transformed))
+              features = np.column_stack((features, transformed))
           else:
             features = transformed
         else:
           if features is not None:
-            features = np.column_stack((features, rows[:,i,None]))
+            features = np.column_stack((features, scale(rows[:,i,None].astype(int))))
           else:
-            features = rows[:,i,None]
-        features = np.asarray([[int(i) for i in j] for j in features])        
+            features = scale(rows[:,i,None].astype(int))
+#        features = np.asarray([[int(i) for i in j] for j in features])        
       return features
 
     def __len__(self):
