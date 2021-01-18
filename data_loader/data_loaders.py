@@ -4,7 +4,8 @@ from torchvision import datasets, transforms
 import torchtext
 from torch.utils.data import DataLoader, Dataset
 from base import BaseDataLoader
-from sklearn.preprocessing import MultiLabelBinarizer
+from sklearn.preprocessing import MultiLabelBinarizer, scale
+
 
 class CIFAR100DataLoader(BaseDataLoader):
     def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
@@ -92,7 +93,9 @@ class GermanCreditDatasetOneHot(Dataset):
           else:
             features = transformed
         else:
-          features = np.column_stack((features, rows[:,i,None]))
+#          import pdb; pdb.set_trace()
+          features = np.column_stack((features, scale(rows[:,i,None])))
+#          features = np.column_stack((features, rows[:,i,None]))
       features = np.asarray([[int(i) for i in j] for j in features])        
       return features
 
