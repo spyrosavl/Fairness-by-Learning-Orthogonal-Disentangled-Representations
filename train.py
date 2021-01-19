@@ -9,6 +9,7 @@ import model.model as module_arch
 from parse_config import ConfigParser
 from trainer import Trainer
 from utils import prepare_device
+from model.model import *
 from data_loader.data_loaders import GermanCreditDatasetOneHot
 from torch.utils.data import DataLoader
 
@@ -34,6 +35,9 @@ def main(config):
     # prepare for (multi-device) GPU training
     device, device_ids = prepare_device(config['n_gpu'])
     model = model.to(device)
+    encoder = CIFAR_Encoder(input_dim=64, z_dim=2).to(device)
+    decoder = Tabular_ModelDecoder(z_dim=2, hidden_dims=[256,128], target_classes=1, sensitive_classes=1).to(device)
+
     if len(device_ids) > 1:
         model = torch.nn.DataParallel(model, device_ids=device_ids)
 
@@ -42,16 +46,30 @@ def main(config):
     metrics = [getattr(module_metric, met) for met in config['metrics']]
 
     # build optimizer, learning rate scheduler. delete every lines containing lr_scheduler for disabling scheduler
-    trainable_params = filter(lambda p: p.requires_grad, model.parameters())
-    optimizer = config.init_obj('optimizer', torch.optim, trainable_params)
-    lr_scheduler = config.init_obj('lr_scheduler', torch.optim.lr_scheduler, optimizer)
+    if config["arch"]["type"] == "TabularModel" :
+        trainable_params = filter(lambda p: p.requires_grad, model.parameters())
+        optimizer = config.init_obj('optimizer', torch.optim, trainable_params)
+        lr_scheduler = config.init_obj('lr_scheduler', torch.optim.lr_scheduler, optimizer)
 
-    trainer = Trainer(model, criterion, metrics, optimizer,
-                      config=config,
-                      device=device,
-                      data_loader=data_loader,
-                      valid_data_loader=valid_data_loader,
-                      lr_scheduler=lr_scheduler)
+        trainer = Trainer(model, criterion, metrics, optimizer, optimizer_2=None,
+                        config=config,
+                        device=device,
+                        data_loader=data_loader,
+                        valid_data_loader=valid_data_loader,
+                        lr_scheduler=lr_scheduler)
+    else : 
+        trainable_params_1 = filter(lambda p: p.requires_grad, encoder.parameters())
+        optimizer_1 = config.init_obj('optimizer_1', torch.optim, trainable_params_1)
+        trainable_params_2 = filter(lambda p: p.requires_grad, encoder.parameters())
+        optimizer_2 = config.init_obj('optimizer_2', torch.optim, trainable_params_2)
+        lr_scheduler = config.init_obj('lr_scheduler', torch.optim.lr_scheduler, optimizer_1)
+
+        trainer = Trainer(model, criterion, metrics, optimizer_1, optimizer_2,
+                        config=config,
+                        device=device,
+                        data_loader=data_loader,
+                        valid_data_loader=valid_data_loader,
+                        lr_scheduler=lr_scheduler)
 
     
     trainer.train()

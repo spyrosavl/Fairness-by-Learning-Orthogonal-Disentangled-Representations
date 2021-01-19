@@ -130,7 +130,7 @@ act_fn_by_name = {
     "gelu": nn.GELU
 }
 
-class ResNetBlock(nn.Module):
+class ResNetBlock(BaseModel):
 
     def __init__(self, c_in=64, act_fn=act_fn_by_name["relu"], subsample=True, c_out=-1):
         
@@ -159,7 +159,7 @@ class ResNetBlock(nn.Module):
         out = self.act_fn(out)
         return out
 
-class PreActResNetBlock(nn.Module):
+class PreActResNetBlock(BaseModel):
 
     def __init__(self, c_in=1, act_fn=act_fn_by_name["relu"], subsample=False, c_out=-1):
         
@@ -194,7 +194,7 @@ resnet_blocks_by_name = {
     "ResNetBlock": ResNetBlock,
     "PreActResNetBlock": PreActResNetBlock}
 
-class ResNet(nn.Module):
+class ResNet(BaseModel):
 
     def __init__(self, num_classes=64, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="ResNetBlock", **kwargs):
        
@@ -264,7 +264,7 @@ class ResNet(nn.Module):
         x_2 = self.encoder2_net(x)
         return x_1, x_2
 
-class CIFAR_Encoder(nn.Module):
+class CIFAR_Encoder(BaseModel):
 
     def __init__(self, input_dim, z_dim):
 
@@ -308,3 +308,29 @@ class CifarModel(BaseModel):
         y_zt, s_zt, s_zs = self.decoder(z1, z2) 
         return (mean_t, mean_s, log_std_t, log_std_s), (y_zt, s_zt, s_zs), (z1, z2)
         
+class Cifar_Classifier(BaseModel):
+
+    def __init__(z_dim, hidden_dim, out_dim):
+        super().__init__()
+
+        self.num_layers = [z_dim] + hidden_dims
+        
+        #Activation function
+        self.act_f = nn.ReLU()
+
+        #Architecture without the output layer
+        self.layers = []
+        for layer_index in range(1, len(self.num_layers)):
+            self.layers += [nn.Linear(self.num_layers[layer_index - 1],
+                            self.num_layers[layer_index]), self.act_f]
+        
+        self.output= nn.Linear(self.num_layers[-1], out_dim)
+
+        self.classifier = nn.ModuleList(self.layers)
+
+    def forward(self, input):
+
+        x = self.classifier(input)
+        out = self.output(x)
+        out = torch.softmax(out, dim=1)
+        return out
