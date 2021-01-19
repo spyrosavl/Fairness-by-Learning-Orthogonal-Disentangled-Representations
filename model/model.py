@@ -132,7 +132,7 @@ act_fn_by_name = {
 
 class ResNetBlock(nn.Module):
 
-    def __init__(self, c_in=1, act_fn=act_fn_by_name["relu"], subsample=True, c_out=-1):
+    def __init__(self, c_in=64, act_fn=act_fn_by_name["relu"], subsample=True, c_out=-1):
         
         super().__init__()
 
@@ -141,10 +141,10 @@ class ResNetBlock(nn.Module):
             
         # Network representing F
         self.net = nn.Sequential(
-            nn.Conv2d(c_in, c_out, kernel_size=3, padding=1, stride=1 if not subsample else 2, bias=False), # No bias needed as the Batch Norm handles it
+            nn.Conv2d(c_in, c_out, kernel_size=3, padding=1, stride=1 if not subsample else 2), # No bias needed as the Batch Norm handles it
             nn.BatchNorm2d(c_out),
             act_fn(),
-            nn.Conv2d(c_out, c_out, kernel_size=3, padding=1, bias=False),
+            nn.Conv2d(c_out, c_out, kernel_size=3, padding=1),
             nn.BatchNorm2d(c_out))
         
         # 1x1 convolution with stride 2 means we take the upper left value, and transform it to new output size
@@ -172,10 +172,10 @@ class PreActResNetBlock(nn.Module):
         self.net = nn.Sequential(
             nn.BatchNorm2d(c_in),
             act_fn(),
-            nn.Conv2d(c_in, c_out, kernel_size=3, padding=1, stride=1 if not subsample else 2, bias=False),
+            nn.Conv2d(c_in, c_out, kernel_size=3, padding=1, stride=1 if not subsample else 2),
             nn.BatchNorm2d(c_out),
             act_fn(),
-            nn.Conv2d(c_out, c_out, kernel_size=3, padding=1, bias=False))
+            nn.Conv2d(c_out, c_out, kernel_size=3, padding=1))
         
         # 1x1 convolution needs to apply non-linearity as well as not done on skip connection
         self.downsample = nn.Sequential(
@@ -216,12 +216,13 @@ class ResNet(nn.Module):
         # A first convolution on the original image to scale up the channel size
         if self.hparams.block_class == PreActResNetBlock: # => Don't apply non-linearity on output
             self.input_net = nn.Sequential(
-                nn.Conv2d(3, c_hidden[0], kernel_size=3, padding=1, bias=False))
+                nn.Conv2d(3, c_hidden[0], kernel_size=3, padding=1))
         else:
             self.input_net = nn.Sequential(
-                nn.Conv2d(3, c_hidden[0], kernel_size=3, padding=1, bias=False),
+                nn.Conv2d(3, c_hidden[0], kernel_size=7, stride=2, padding=3),
                 nn.BatchNorm2d(c_hidden[0]),
-                self.hparams.act_fn())
+                self.hparams.act_fn(),
+                nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
         
         # Creating the ResNet blocks
         blocks = []
@@ -236,13 +237,13 @@ class ResNet(nn.Module):
 
         self.blocks = nn.Sequential(*blocks)
         
-        # Mapping to output
-        self.output1_net = nn.Sequential(
+        # Mapping to encoders
+        self.encoder1_net = nn.Sequential(
             nn.AdaptiveAvgPool2d((1,1)),
             nn.Flatten(),
             nn.Linear(c_hidden[-1], self.hparams.num_classes))
 
-        self.output2_net = nn.Sequential(
+        self.encoder2_net = nn.Sequential(
             nn.AdaptiveAvgPool2d((1,1)),
             nn.Flatten(),
             nn.Linear(c_hidden[-1], self.hparams.num_classes))
@@ -259,8 +260,8 @@ class ResNet(nn.Module):
     def forward(self, x):
         x = self.input_net(x)
         x = self.blocks(x)
-        x_1 = self.output1_net(x)
-        x_2 = self.output2_net(x)
+        x_1 = self.encoder1_net(x)
+        x_2 = self.encoder2_net(x)
         return x_1, x_2
 
 class CIFAR_Encoder(nn.Module):
@@ -282,14 +283,14 @@ class CIFAR_Encoder(nn.Module):
         self.act_f = nn.ReLU() 
 
     def forward(self, x):
-
+       
         out_1, out_2 = self.act_f(ResNet(self.z_dim).forward(x)[0]), self.act_f(ResNet(self.z_dim).forward(x)[1])
         
-        mean_t = self.mean_encoder_1(torch.transpose(out_1, 0, 1))
-        log_std_t = self.log_std_1(torch.transpose(out_1, 0, 1))
+        mean_t = self.mean_encoder_1(torch.transpose(out_1, 1, 0))
+        log_std_t = self.log_std_1(torch.transpose(out_1, 1, 0))
         
-        mean_s = self.mean_encoder_2(torch.transpose(out_2, 0, 1))
-        log_std_s = self.log_std_2(torch.transpose(out_2, 0, 1))
+        mean_s = self.mean_encoder_2(torch.transpose(out_2, 1, 0))
+        log_std_s = self.log_std_2(torch.transpose(out_2, 1, 0))
 
         return mean_t, mean_s, log_std_t, log_std_s
 
