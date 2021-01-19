@@ -94,9 +94,9 @@ class Criterion(nn.Module):
 
         L_t = self.bce(y_zt, target[:,None].float())
         L_s = self.bce(s_zt, sensitive.float())
-        #uniform = torch.rand(size=s_zs.size())
-        #Loss_e = self.kld(s_zs, uniform)
-        Loss_e = L_e(s_zs)
+        uniform = torch.rand(size=s_zs.size())
+        Loss_e = self.kld(torch.log_softmax(s_zs, dim=1), uniform)
+        #Loss_e = L_e(s_zs)
 
         m_t = MultivariateNormal(torch.tensor([0.,1.]), torch.eye(2))
         m_s = MultivariateNormal(torch.tensor([1.,0.]), torch.eye(2))

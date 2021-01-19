@@ -4,7 +4,7 @@ from torchvision import datasets, transforms
 import torchtext
 from torch.utils.data import DataLoader, Dataset
 from base import BaseDataLoader
-from sklearn.preprocessing import MultiLabelBinarizer, scale
+from sklearn.preprocessing import MultiLabelBinarizer, normalize
 
 
 class CIFAR100DataLoader(BaseDataLoader):
@@ -93,7 +93,7 @@ class GermanCreditDatasetOneHot(Dataset):
           else:
             features = transformed
         else:
-          features = np.column_stack((features, scale(rows[:,i,None])))
+          features = np.column_stack((features, normalize(rows[:,i,None])))
 #          features = np.column_stack((features, rows[:,i,None]))
 #      features = np.asarray([[int(i) for i in j] for j in features])        
       return features
@@ -169,9 +169,9 @@ class AdultDatasetOneHot(Dataset):
             features = transformed
         else:
           if features is not None:
-            features = np.column_stack((features, scale(rows[:,i,None].astype(int))))
+            features = np.column_stack((features, normalize(rows[:,i,None].astype(int))))
           else:
-            features = scale(rows[:,i,None].astype(int))
+            features = normalize(rows[:,i,None].astype(int))
 #        features = np.asarray([[int(i) for i in j] for j in features])        
       return features
 

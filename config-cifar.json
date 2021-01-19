@@ -6,17 +6,17 @@
         "type": "CifarModel",
         "args": {
             "input_dim" : 64,
-            "hidden_dim" : 64,
+            "hidden_dim" : [256, 128],
             "z_dim" : 2,
             "target_classes" : 1,
-            "sensitive_classes" : 2
+            "sensitive_classes" : 1
         }
     },
     "data_loader": {
         "type": "CIFAR10DataLoader",
         "args":{
             "data_dir": "data/",
-            "batch_size": 64,
+            "batch_size": 256,
             "shuffle": true,
             "validation_split": 0.1,
             "num_workers": 2
@@ -25,8 +25,8 @@
     "optimizer": {
         "type": "Adam",
         "args":{
-            "lr": 0.001,
-            "weight_decay": 0.0001,
+            "lr": 0.0001,
+            "weight_decay": 0.01,
             "amsgrad": true
         }
     },
@@ -53,11 +53,11 @@
 
         "tensorboard": true,
 
-        "lambda_e" : 0.5,
-        "lambda_od" : 0.5,
+        "lambda_e" : 1.0,
+        "lambda_od" : 0.063,
         "gamma_e" : 1,
-        "gamma_od" : 1,
-        "step_size" : 1
+        "gamma_od" : 1.7,
+        "step_size" : 256
  
 
 

@@ -120,7 +120,7 @@ class Tabular_ModelDecoder(BaseModel):
             out_2 = layers_2(out_2)
         s_zt = self.output_2(out_1)
         s_zs = self.output_2(out_2)
-
+        
         return y_zt, s_zt, s_zs
 
 act_fn_by_name = {
@@ -284,14 +284,14 @@ class CIFAR_Encoder(nn.Module):
 
     def forward(self, x):
        
-        out_1, out_2 = self.act_f(ResNet(self.z_dim).forward(x)[0]), self.act_f(ResNet(self.z_dim).forward(x)[1])
+        out_1, out_2 = self.act_f(ResNet().forward(x)[0]), self.act_f(ResNet().forward(x)[1])
         
-        mean_t = self.mean_encoder_1(torch.transpose(out_1, 1, 0))
-        log_std_t = self.log_std_1(torch.transpose(out_1, 1, 0))
+        mean_t = self.mean_encoder_1(out_1)
+        log_std_t = self.log_std_1(out_1)
         
-        mean_s = self.mean_encoder_2(torch.transpose(out_2, 1, 0))
-        log_std_s = self.log_std_2(torch.transpose(out_2, 1, 0))
-
+        mean_s = self.mean_encoder_2(out_2)
+        log_std_s = self.log_std_2(out_2)
+        
         return mean_t, mean_s, log_std_t, log_std_s
 
 class CifarModel(BaseModel):
@@ -300,7 +300,7 @@ class CifarModel(BaseModel):
         super().__init__()
 
         self.encoder = CIFAR_Encoder(input_dim, z_dim)
-        self.decoder = Tabular_ModelDecoder(z_dim, [hidden_dim, hidden_dim], target_classes, sensitive_classes)
+        self.decoder = Tabular_ModelDecoder(z_dim, hidden_dim, target_classes, sensitive_classes)
 
     def forward(self, x):
         mean_t, mean_s, log_std_t, log_std_s = self.encoder(x)
