@@ -87,13 +87,18 @@ class Criterion(nn.Module):
         self.kld = nn.KLDivLoss(reduction='batchmean')
         #TODO tensors through which we have to back propagate have to have require_grad = True (and be of type Parameter?)
 
-    def forward(self, inputs, target, sensitive, current_step):
+    def forward(self, inputs, target, sensitive, dataset_name, current_step):
         mean_t, mean_s, log_std_t, log_std_s = inputs[0]
         y_zt, s_zt, s_zs = inputs[1]
         z1, z2 = inputs[2]
-
-        L_t = self.bce(y_zt, target[:,None].float())
-        L_s = self.bce(s_zt, sensitive.float())
+        
+        if dataset_name == 'CIFAR10DataLoader':
+            L_t = self.bce(y_zt, target[:,None].float())
+            L_s = self.bce(s_zt, sensitive[:,None].float())
+        else:
+            L_t = self.bce(y_zt, target[:,None].float())
+            L_s = self.bce(s_zt, sensitive.float())
+ 
         uniform = torch.rand(size=s_zs.size())
         Loss_e = self.kld(torch.log_softmax(s_zs, dim=1), uniform)
         #Loss_e = L_e(s_zs)

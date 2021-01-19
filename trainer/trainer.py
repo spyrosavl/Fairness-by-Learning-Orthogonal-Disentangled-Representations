@@ -60,7 +60,7 @@ class Trainer(BaseTrainer):
 
                 self.optimizer.zero_grad()
                 output = self.model(data)
-                loss = self.criterion(output, target, sensitive, batch_idx)
+                loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
                 loss.backward()
                 self.optimizer.step()
             
@@ -81,7 +81,7 @@ class Trainer(BaseTrainer):
 
                 self.optimizer.zero_grad()
                 output = self.model(data)
-                loss = self.criterion(output, target, sensitive, batch_idx)
+                loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
                 loss.backward()
                 self.optimizer.step()
             
@@ -123,26 +123,25 @@ class Trainer(BaseTrainer):
                     sensitive = torch.tensor([i in self.living_classes for i in target]).long()
     
                     output = self.model(data)
-                    loss = self.criterion(output, target, sensitive, batch_idx)
+                    loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
 
                     z_t = output[2][0]
                     t_clf = self.target_clf.fit(z_t, target)
                     t_predictions = torch.tensor(t_clf.predict(z_t))
-                    s = torch.argmax(sensitive, dim=1)
-                    s_clf = self.sensitive_clf.fit(z_t, s)
+                    s_clf = self.sensitive_clf.fit(z_t, sensitive)
                     s_predictions = torch.tensor(s_clf.predict(z_t))
 
                     self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                     self.valid_metrics.update('loss', loss.item())
                     self.valid_metrics.update('accuracy', self.metric_ftns[0](t_predictions, target))
-                    self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_predictions, s))
+                    self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_predictions, sensitive))
 
             else:
                 for batch_idx, (data, sensitive, target) in enumerate(self.valid_data_loader):
                     data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
                     #import pdb; pdb.set_trace()
                     output = self.model(data)
-                    loss = self.criterion(output, target, sensitive, batch_idx)
+                    loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
 
                     z_t = output[2][0]
                     t_clf = self.target_clf.fit(z_t, target)
