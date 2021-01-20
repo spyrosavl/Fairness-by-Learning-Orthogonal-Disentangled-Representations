@@ -4,15 +4,16 @@ from torchvision.utils import make_grid
 from base import BaseTrainer
 from utils import inf_loop, MetricTracker, Criterion
 from sklearn.linear_model import LogisticRegression
-
+from model.model import *
+from sklearn.preprocessing import normalize
 
 class Trainer(BaseTrainer):
     """
     Trainer class
     """
-    def __init__(self, model, criterion, metric_ftns, optimizer, config, device,
+    def __init__(self, model, criterion, metric_ftns, optimizer_1, optimizer_2 , config, device,
                  data_loader, valid_data_loader=None, lr_scheduler=None, len_epoch=None):
-        super().__init__(model, criterion, metric_ftns, optimizer, config)
+        super().__init__(model, criterion, metric_ftns, optimizer_1, optimizer_2, config)
         self.config = config
         self.device = device
         
@@ -21,6 +22,8 @@ class Trainer(BaseTrainer):
         self.gamma_e = config['trainer']['gamma_e']
         self.gamma_od = config['trainer']['gamma_od']
         self.step_size = config['trainer']['step_size']
+        self.dataset_name = config['data_loader']['type']
+        self.living_classes = [2,3,4,5,6,7]
 
         self.data_loader = data_loader
         if len_epoch is None:
@@ -51,26 +54,52 @@ class Trainer(BaseTrainer):
         """
         self.model.train()
         self.train_metrics.reset()
-        for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
-            data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
-
-            self.optimizer.zero_grad()
-            output = self.model(data)
-            loss = self.criterion(output, target, sensitive, batch_idx)
-            loss.backward()
-            self.optimizer.step()
+        if self.dataset_name == 'CIFAR10DataLoader':
+            for batch_idx, (data, target) in enumerate(self.data_loader):
+                data, target = data.to(self.device), target.to(self.device)
+                sensitive = torch.tensor([i in self.living_classes for i in target]).long()
+                
+                self.optimizer_1.zero_grad()
+                self.optimizer_2.zero_grad()
+                output = self.model(data)
+                loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
+                loss.backward()
+                self.optimizer_1.step()
+                self.optimizer_2.step()
             
-            self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
-            self.train_metrics.update('loss', loss.item())
+                self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
+                self.train_metrics.update('loss', loss.item())
 
-            if batch_idx % self.log_step == 0:
-                self.logger.debug('Train Epoch: {} {} Loss: {:.6f}'.format(
-                    epoch,
-                    self._progress(batch_idx),
-                    loss.item()))
+                if batch_idx % self.log_step == 0:
+                    self.logger.debug('Train Epoch: {} {} Loss: {:.6f}'.format(
+                        epoch,
+                        self._progress(batch_idx),
+                        loss.item()))
 
-            if batch_idx == self.len_epoch:
-                break
+                if batch_idx == self.len_epoch:
+                    break
+        else:
+            for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
+                data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
+
+                self.optimizer_1.zero_grad()
+                output = self.model(data)
+                loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
+                loss.backward()
+                self.optimizer_1.step()
+            
+                self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
+                self.train_metrics.update('loss', loss.item())
+
+                if batch_idx % self.log_step == 0:
+                    self.logger.debug('Train Epoch: {} {} Loss: {:.6f}'.format(
+                        epoch,
+                        self._progress(batch_idx),
+                        loss.item()))
+
+                if batch_idx == self.len_epoch:
+                    break
+
         log = self.train_metrics.result()
 
         if self.do_validation:
@@ -91,23 +120,41 @@ class Trainer(BaseTrainer):
         self.model.eval()
         self.valid_metrics.reset()
         with torch.no_grad():
-            for batch_idx, (data, sensitive, target) in enumerate(self.valid_data_loader):
-                data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
-                #import pdb; pdb.set_trace()
-                output = self.model(data)
-                loss = self.criterion(output, target, sensitive, batch_idx)
+            if self.dataset_name == 'CIFAR10DataLoader':
+                for batch_idx, (data, target) in enumerate(self.valid_data_loader):
+                    data, target = data.to(self.device), target.to(self.device)
+                    sensitive = torch.tensor([i in self.living_classes for i in target]).long()
+                    
+                    output = self.model(data)
+                    loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
 
-                z_t = output[2][0]
-                t_clf = self.target_clf.fit(z_t, target)
-                t_predictions = torch.tensor(t_clf.predict(z_t))
-                s = torch.argmax(sensitive, dim=1)
-                s_clf = self.sensitive_clf.fit(z_t, s)
-                s_predictions = torch.tensor(s_clf.predict(z_t))
+                    z_t = output[2][0]
+                    t_predictions = Cifar_Classifier(z_dim=2, hidden_dim=[256, 128], out_dim=target.shape[0]).forward(z_t)
+                    s_predictions = Cifar_Classifier(z_dim=2, hidden_dim=[256, 128], out_dim=sensitive.shape[0]).forward(z_t)
 
-                self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
-                self.valid_metrics.update('loss', loss.item())
-                self.valid_metrics.update('accuracy', self.metric_ftns[0](t_predictions, target))
-                self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_predictions, s))
+                    self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
+                    self.valid_metrics.update('loss', loss.item())
+                    self.valid_metrics.update('accuracy', self.metric_ftns[0](t_predictions, target))
+                    self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_predictions, sensitive))
+
+            else:
+                for batch_idx, (data, sensitive, target) in enumerate(self.valid_data_loader):
+                    data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
+                    #import pdb; pdb.set_trace()
+                    output = self.model(data)
+                    loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
+
+                    z_t = output[2][0]
+                    t_clf = self.target_clf.fit(z_t, target)
+                    t_predictions = torch.tensor(t_clf.predict(z_t))
+                    s = torch.argmax(sensitive, dim=1)
+                    s_clf = self.sensitive_clf.fit(z_t, s)
+                    s_predictions = torch.tensor(s_clf.predict(z_t))
+
+                    self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
+                    self.valid_metrics.update('loss', loss.item())
+                    self.valid_metrics.update('accuracy', self.metric_ftns[0](t_predictions, target))
+                    self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_predictions, s))
 
         # add histogram of model parameters to the tensorboard
         # for name, p in self.model.named_parameters():

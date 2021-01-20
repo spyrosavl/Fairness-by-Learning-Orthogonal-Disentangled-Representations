@@ -87,15 +87,21 @@ class Criterion(nn.Module):
         self.kld = nn.KLDivLoss(reduction='batchmean')
         #TODO tensors through which we have to back propagate have to have require_grad = True (and be of type Parameter?)
 
-    def forward(self, inputs, target, sensitive, current_step):
+    def forward(self, inputs, target, sensitive, dataset_name, current_step):
         mean_t, mean_s, log_std_t, log_std_s = inputs[0]
         y_zt, s_zt, s_zs = inputs[1]
         z1, z2 = inputs[2]
-
-        L_t = self.bce(y_zt, target[:,None].float())
-        L_s = self.bce(s_zt, sensitive.float())
+        
+        if dataset_name == 'CIFAR10DataLoader':
+            L_t = self.bce(y_zt, target[:,None].float())
+            L_s = self.bce(s_zt, sensitive[:,None].float())
+        else:
+            L_t = self.bce(y_zt, target[:,None].float())
+            L_s = self.bce(s_zt, sensitive.float())
+ 
         uniform = torch.rand(size=s_zs.size())
-        Loss_e = self.kld(s_zs, uniform)
+        Loss_e = self.kld(torch.log_softmax(s_zs, dim=1), uniform)
+        #Loss_e = L_e(s_zs)
 
         m_t = MultivariateNormal(torch.tensor([0.,1.]), torch.eye(2))
         m_s = MultivariateNormal(torch.tensor([1.,0.]), torch.eye(2))
@@ -107,8 +113,8 @@ class Criterion(nn.Module):
         for i in range(z1.shape[0]):
             prior_t.append(m_t.sample())
             prior_s.append(m_s.sample())
-            n_t = Normal(mean_t[i], torch.exp(log_std_t[i] - torch.max(log_std_t[i])))
-            n_s = Normal(mean_s[i], torch.exp(log_std_s[i] - torch.max(log_std_s[i])))
+            n_t = MultivariateNormal(mean_t[i], torch.diag(torch.exp(2*log_std_t[i])))
+            n_s = MultivariateNormal(mean_s[i], torch.diag(torch.exp(2*log_std_s[i])))
             enc_dis_t.append(n_t.sample())
             enc_dis_s.append(n_s.sample())
 
@@ -116,15 +122,16 @@ class Criterion(nn.Module):
         prior_s = torch.stack(prior_s)
         enc_dis_t = torch.stack(enc_dis_t)
         enc_dis_s = torch.stack(enc_dis_s)
+#        import pdb; pdb.set_trace()
 
-        L_zt = self.kld(enc_dis_t, prior_t)
-        L_zs = self.kld(enc_dis_s, prior_s)
+        L_zt = self.kld(torch.log_softmax(enc_dis_t, dim=1), prior_t)
+        L_zs = self.kld(torch.log_softmax(enc_dis_s, dim=1), prior_s)
  
-        # print('L_t: ', L_t)
-        # print('L_s: ', L_s)
-        # print('Loss_e: ', Loss_e)
-        # print('L_zt: ', L_zt)
-        # print('L_st: ', L_zs)
+        #print('L_t: ', L_t)
+        #print('L_s: ', L_s)
+        #print('Loss_e: ', Loss_e)
+        #print('L_zt: ', L_zt)
+        #print('L_st: ', L_zs)
 
        # import pdb; pdb.set_trace()
         lambda_e = self.lambda_e * self.gamma_e ** (current_step/self.step_size)

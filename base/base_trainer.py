@@ -2,20 +2,22 @@ import torch
 from abc import abstractmethod
 from numpy import inf
 from logger import TensorboardWriter
-
+import argparse
+from parse_config import ConfigParser
 
 class BaseTrainer:
     """
     Base class for all trainers
     """
-    def __init__(self, model, criterion, metric_ftns, optimizer, config):
+    def __init__(self, model, criterion, metric_ftns, optimizer_1, optimizer_2, config):
         self.config = config
         self.logger = config.get_logger('trainer', config['trainer']['verbosity'])
 
         self.model = model
         self.criterion = criterion
         self.metric_ftns = metric_ftns
-        self.optimizer = optimizer
+        self.optimizer_1 = optimizer_1
+        self.optimizer_2 = optimizer_2 
 
         cfg_trainer = config['trainer']
         self.epochs = cfg_trainer['epochs']
@@ -107,14 +109,27 @@ class BaseTrainer:
         :param save_best: if True, rename the saved checkpoint to 'model_best.pth'
         """
         arch = type(self.model).__name__
-        state = {
-            'arch': arch,
-            'epoch': epoch,
-            'state_dict': self.model.state_dict(),
-            'optimizer': self.optimizer.state_dict(),
-            'monitor_best': self.mnt_best,
-            'config': self.config
-        }
+        
+        if self.config["name"] == "Adult" or  "German" :
+            state = {
+                'arch': arch,
+                'epoch': epoch,
+                'state_dict': self.model.state_dict(),
+                'optimizer_1': self.optimizer_1.state_dict(),
+                'monitor_best': self.mnt_best,
+                'config': self.config
+            }
+        else :
+            state = {
+                'arch': arch,
+                'epoch': epoch,
+                'state_dict': self.model.state_dict(),
+                'optimizer_1': self.optimizer_1.state_dict(),
+                'optimizer_2': self.optimizer_2.state_dict(),
+                'monitor_best': self.mnt_best,
+                'config': self.config
+            }
+
         filename = str(self.checkpoint_dir / 'checkpoint-epoch{}.pth'.format(epoch))
         torch.save(state, filename)
         self.logger.info("Saving checkpoint: {} ...".format(filename))
@@ -142,10 +157,18 @@ class BaseTrainer:
         self.model.load_state_dict(checkpoint['state_dict'])
 
         # load optimizer state from checkpoint only when optimizer type is not changed.
-        if checkpoint['config']['optimizer']['type'] != self.config['optimizer']['type']:
-            self.logger.warning("Warning: Optimizer type given in config file is different from that of checkpoint. "
-                                "Optimizer parameters not being resumed.")
-        else:
-            self.optimizer.load_state_dict(checkpoint['optimizer'])
-
+        if self.config["name"] == "Adult" or  "German" :
+            if checkpoint['config']['optimizer']['type'] != self.config['optimizer']['type']:
+                self.logger.warning("Warning: Optimizer type given in config file is different from that of checkpoint. "
+                                    "Optimizer parameters not being resumed.")
+            else:
+                self.optimizer.load_state_dict(checkpoint['optimizer'])
+        else: 
+            if checkpoint['config']['optimizer_1']['type'] != self.config['optimizer_1']['type']:
+                self.logger.warning("Warning: Optimizer type given in config file is different from that of checkpoint. "
+                                    "Optimizer parameters not being resumed.")
+            else:
+                self.optimizer.load_state_dict(checkpoint['optimizer_1'])
+                self.optimizer.load_state_dict(checkpoint['optimizer_2'])
+                
         self.logger.info("Checkpoint loaded. Resume training from epoch {}".format(self.start_epoch))

@@ -6,8 +6,8 @@ from base import BaseModel
 
 #@torch.no_grad()
 def reparameterization(mean_t, mean_s, log_std_t, log_std_s):
-    z1 = mean_t + torch.exp(log_std_t - torch.max(log_std_t)) @ torch.normal(torch.from_numpy(np.array([0.,1.]).T).float(), torch.eye(2))
-    z2 = mean_s + torch.exp(log_std_s - torch.max(log_std_s)) @ torch.normal(torch.from_numpy(np.array([1.,0.]).T).float(), torch.eye(2))
+    z1 = mean_t + torch.exp(log_std_t) @ torch.normal(torch.from_numpy(np.array([0.,1.]).T).float(), torch.eye(2))
+    z2 = mean_s + torch.exp(log_std_s) @ torch.normal(torch.from_numpy(np.array([1.,0.]).T).float(), torch.eye(2))
 
     return z1, z2
 
@@ -120,65 +120,37 @@ class Tabular_ModelDecoder(BaseModel):
             out_2 = layers_2(out_2)
         s_zt = self.output_2(out_1)
         s_zs = self.output_2(out_2)
-
+        
         return y_zt, s_zt, s_zs
 
-class ResNetBlock(nn.Module): #Blocks used in the ResNet architecture https://supervise.ly/explore/models/res-net-18-image-net-2717/overview 
+act_fn_by_name = {
+    "tanh": nn.Tanh,
+    "relu": nn.ReLU,
+    "leakyrelu": nn.LeakyReLU,
+    "gelu": nn.GELU
+}
 
-    def __init__(self, in_channels=1, out_channels=-1, subsample= False, act_fn='nn.ReLu'):
+class ResNetBlock(BaseModel):
 
-        super(ResNetBlock, self).__init__()
+    def __init__(self, c_in=64, act_fn=act_fn_by_name["relu"], subsample=True, c_out=-1):
         
+        super().__init__()
+
         if not subsample:
-            out_channels = in_channels
-
-        self.net = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels,
-                    kernel_size=3, stride=1, padding=0 if not subsample else 2, bias=False),
-            nn.BatchNorm2d(out_channels),
-            act_fn(),
-            nn.Conv2d(out_channels, out_channels,
-                    kernel_size=3, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(out_channels))
-
-        self.downsample = nn.Conv2d(in_channels, out_channels,
-                                    kernel_size=1, stride=2, bias=False) if subsample else None
-        self.act_fn = act_fn
-    
-    def forward(self, x):
-        z = self.net(x)
-        if self.downsample is not None:
-            x = self.downsample(x)
-        out = z + x
-        out = self.act_fn(out)
-        return out
-
-class PreActResNetBlock(nn.Module): #Blocks used in the PreActResNet architecture
-
-    def __init__(self, in_channels=1, out_channels=-1, subsample= False, act_fn='nn.ReLu'):
-
-        super(ResNetBlock, self).__init__()
-        
-        if not subsample:
-            out_channels = in_channels
+            c_out = c_in
             
+        # Network representing F
         self.net = nn.Sequential(
-            nn.BatchNorm2d(in_channels),
+            nn.Conv2d(c_in, c_out, kernel_size=3, padding=1, stride=1 if not subsample else 2), # No bias needed as the Batch Norm handles it
+            nn.BatchNorm2d(c_out),
             act_fn(),
-            nn.Conv2d(in_channels, out_channels,
-                    kernel_size=3, stride=1, padding=0 if not subsample else 2, bias=False),
-            nn.BatchNorm2d(out_channels),
-            act_fn(),
-            nn.Conv2d(out_channels, out_channels,
-                    kernel_size=3, stride=1, padding=0, bias=False),
-            nn.BatchNorm2d(out_channels))
-
-        self.downsample = nn.Sequential(
-            nn.BatchNorm2d(in_channels),
-            act_fn,
-            nn.Conv2d(in_channels, out_channels,
-                      kernel_size=1, stride=2, bias=False) if subsample else None)
-
+            nn.Conv2d(c_out, c_out, kernel_size=3, padding=1),
+            nn.BatchNorm2d(c_out))
+        
+        # 1x1 convolution with stride 2 means we take the upper left value, and transform it to new output size
+        self.downsample = nn.Conv2d(c_in, c_out, kernel_size=1, stride=2) if subsample else None
+        self.act_fn = act_fn()
+ 
     def forward(self, x):
         z = self.net(x)
         if self.downsample is not None:
@@ -187,38 +159,71 @@ class PreActResNetBlock(nn.Module): #Blocks used in the PreActResNet architectur
         out = self.act_fn(out)
         return out
 
-class ResNet(nn.Module):
+class PreActResNetBlock(BaseModel):
 
-    def __init__(self, num_outputs, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="nn.ReLu", block_name="ResNetBlock", **kwargs):
+    def __init__(self, c_in=1, act_fn=act_fn_by_name["relu"], subsample=False, c_out=-1):
         
-        super(ResNet).__init__()
+        super().__init__()
+
+        if not subsample:
+            c_out = c_in
+            
+        # Network representing F
+        self.net = nn.Sequential(
+            nn.BatchNorm2d(c_in),
+            act_fn(),
+            nn.Conv2d(c_in, c_out, kernel_size=3, padding=1, stride=1 if not subsample else 2),
+            nn.BatchNorm2d(c_out),
+            act_fn(),
+            nn.Conv2d(c_out, c_out, kernel_size=3, padding=1))
         
-        self.hparams = SimpleNamespace(num_classes=num_outputs,
-                                       c_hidden=c_hidden,
-                                       num_blocks=num_blocks,
+        # 1x1 convolution needs to apply non-linearity as well as not done on skip connection
+        self.downsample = nn.Sequential(
+            nn.BatchNorm2d(c_in),
+            act_fn(),
+            nn.Conv2d(c_in, c_out, kernel_size=1, stride=2, bias=False)) if subsample else None
+
+    def forward(self, x):
+        z = self.net(x)
+        if self.downsample is not None:
+            x = self.downsample(x)
+        out = z + x
+        return out
+
+resnet_blocks_by_name = {
+    "ResNetBlock": ResNetBlock,
+    "PreActResNetBlock": PreActResNetBlock}
+
+class ResNet(BaseModel):
+
+    def __init__(self, num_classes=64, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="ResNetBlock", **kwargs):
+       
+        super().__init__()
+
+        assert block_name in resnet_blocks_by_name
+        self.hparams = SimpleNamespace(num_classes=num_classes, 
+                                       c_hidden=c_hidden, 
+                                       num_blocks=num_blocks, 
                                        act_fn_name=act_fn_name,
-                                       act_fn=act_fn_name,
-                                       block_class=block_name)
+                                       act_fn=act_fn_by_name[act_fn_name],
+                                       block_class=resnet_blocks_by_name[block_name])
         self._create_network()
         self._init_params()
 
-
     def _create_network(self):
-
         c_hidden = self.hparams.c_hidden
-
+        
         # A first convolution on the original image to scale up the channel size
         if self.hparams.block_class == PreActResNetBlock: # => Don't apply non-linearity on output
             self.input_net = nn.Sequential(
-                nn.Conv2d(3, c_hidden[0], kernel_size=3, padding=1, bias=False)
-            )
+                nn.Conv2d(3, c_hidden[0], kernel_size=3, padding=1))
         else:
             self.input_net = nn.Sequential(
-                nn.Conv2d(3, c_hidden[0], kernel_size=3, padding=1, bias=False),
+                nn.Conv2d(3, c_hidden[0], kernel_size=7, stride=2, padding=3),
                 nn.BatchNorm2d(c_hidden[0]),
-                self.hparams.act_fn()
-            )
-
+                self.hparams.act_fn(),
+                nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
+        
         # Creating the ResNet blocks
         blocks = []
         for block_idx, block_count in enumerate(self.hparams.num_blocks):
@@ -228,26 +233,23 @@ class ResNet(nn.Module):
                     self.hparams.block_class(c_in=c_hidden[block_idx if not subsample else (block_idx-1)],
                                              act_fn=self.hparams.act_fn,
                                              subsample=subsample,
-                                             c_out=c_hidden[block_idx])
-                )
+                                             c_out=c_hidden[block_idx]))
+
         self.blocks = nn.Sequential(*blocks)
-
-        # Mapping to output
-        self.output1_net = nn.Sequential(
+        
+        # Mapping to encoders
+        self.encoder1_net = nn.Sequential(
             nn.AdaptiveAvgPool2d((1,1)),
             nn.Flatten(),
-            nn.Linear(c_hidden[-1], self.hparams.num_outputs)
-        )
+            nn.Linear(c_hidden[-1], self.hparams.num_classes))
 
-        self.output2_net = nn.Sequential(
+        self.encoder2_net = nn.Sequential(
             nn.AdaptiveAvgPool2d((1,1)),
             nn.Flatten(),
-            nn.Linear(c_hidden[-1], self.hparams.num_outputs)
-        )
-
-
+            nn.Linear(c_hidden[-1], self.hparams.num_classes))
+        
     def _init_params(self):
-        # Fan-out focuses on the gradient distribution, and is commonly used in ResNets
+        
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity=self.hparams.act_fn_name)
@@ -255,15 +257,14 @@ class ResNet(nn.Module):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
 
-
     def forward(self, x):
         x = self.input_net(x)
         x = self.blocks(x)
-        x_1 = self.output1_net(x)
-        x_2 = self.output2_net(x)
+        x_1 = self.encoder1_net(x)
+        x_2 = self.encoder2_net(x)
         return x_1, x_2
 
-class CIFAR_Encoder(nn.Module):
+class CIFAR_Encoder(BaseModel):
 
     def __init__(self, input_dim, z_dim):
 
@@ -281,25 +282,27 @@ class CIFAR_Encoder(nn.Module):
         #Activation function
         self.act_f = nn.ReLU() 
 
-    def forward(self, x):
+        self.resnet = ResNet()
 
-        out_1, out_2 = self.act_f(ResNet(self.z_dim).forward(x))
+    def forward(self, x):
         
+        out_1, out_2 = self.act_f(self.resnet.forward(x)[0]), self.act_f(self.resnet.forward(x)[1])
+
         mean_t = self.mean_encoder_1(out_1)
         log_std_t = self.log_std_1(out_1)
         
         mean_s = self.mean_encoder_2(out_2)
         log_std_s = self.log_std_2(out_2)
-
+        
         return mean_t, mean_s, log_std_t, log_std_s
 
 class CifarModel(BaseModel):
 
     def __init__(self, input_dim, hidden_dim, z_dim, target_classes, sensitive_classes):
-        super(CifarModel, self).__init__()
+        super().__init__()
 
         self.encoder = CIFAR_Encoder(input_dim, z_dim)
-        self.decoder = Tabular_ModelDecoder(z_dim, [hidden_dim, hidden_dim], target_classes, sensitive_classes)
+        self.decoder = Tabular_ModelDecoder(z_dim, hidden_dim, target_classes, sensitive_classes)
 
     def forward(self, x):
         mean_t, mean_s, log_std_t, log_std_s = self.encoder(x)
@@ -307,3 +310,31 @@ class CifarModel(BaseModel):
         y_zt, s_zt, s_zs = self.decoder(z1, z2) 
         return (mean_t, mean_s, log_std_t, log_std_s), (y_zt, s_zt, s_zs), (z1, z2)
         
+class Cifar_Classifier(BaseModel):
+
+    def __init__(self, z_dim, hidden_dim, out_dim):
+        super().__init__()
+
+        self.num_layers = [z_dim] + hidden_dim
+        
+        #Activation function
+        self.act_f = nn.ReLU()
+
+        #Architecture without the output layer
+        self.layers = []
+        for layer_index in range(1, len(self.num_layers)):
+            self.layers += [nn.Linear(self.num_layers[layer_index - 1],
+                            self.num_layers[layer_index]), self.act_f]
+        
+        self.output= nn.Linear(self.num_layers[-1], out_dim)
+
+        self.classifier = nn.ModuleList(self.layers)
+
+    def forward(self, x):
+
+        out = x
+        for layers in self.classifier:
+            out = layers(out)
+        out = self.output(out)
+        out = torch.softmax(out, dim=1)
+        return out
