@@ -19,7 +19,7 @@
             "batch_size": 64,
             "shuffle": true,
             "validation_split": 0.1,
-            "num_workers": 2
+            "num_workers": 1
         }
     },
     "optimizer": {
