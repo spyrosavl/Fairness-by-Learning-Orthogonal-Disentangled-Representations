@@ -40,6 +40,13 @@ class MnistDataLoader(BaseDataLoader):
         print(self.dataset)
         super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
 
+class YaleDataLoader(BaseDataLoader):    
+    def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
+        self.data_dir = data_dir
+        self.dataset = datasets.ImageFolder(self.data_dir)
+        print(self.dataset)
+        super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
+
 class GermanDataLoader(BaseDataLoader):
     def __init__(self, data_dir=None, batch_size=16, shuffle=False, validation_split=0.1, num_workers=2):
         trsfm = None #TODO
@@ -193,4 +200,3 @@ if __name__ == '__main__':
     german_dataloader = DataLoader(german_dataset, batch_size=16)
     cifar10 = CIFAR10DataLoader('./', batch_size=64)
     cifar100 = CIFAR100DataLoader('./', batch_size=16)
-
