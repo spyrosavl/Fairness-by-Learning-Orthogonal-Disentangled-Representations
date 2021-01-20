@@ -79,7 +79,7 @@ class Trainer(BaseTrainer):
                 if batch_idx == self.len_epoch:
                     break
         else:
-            
+
             for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
                 data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
 
@@ -130,8 +130,8 @@ class Trainer(BaseTrainer):
                     loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
 
                     z_t = output[2][0]
-                    t_predictions = Cifar_Classifier(hidden_dim=[256, 128], out_dim=256).forward(z_t)
-                    s_predictions = Cifar_Classifier(hidden_dim=[256, 128], out_dim=256).forward(z_t)
+                    t_predictions = Cifar_Classifier(z_dim=2, hidden_dim=[256, 128], out_dim=target.shape[0]).forward(z_t)
+                    s_predictions = Cifar_Classifier(z_dim=2, hidden_dim=[256, 128], out_dim=sensitive.shape[0]).forward(z_t)
 
                     self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                     self.valid_metrics.update('loss', loss.item())

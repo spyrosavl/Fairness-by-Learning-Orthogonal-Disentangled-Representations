@@ -282,10 +282,12 @@ class CIFAR_Encoder(BaseModel):
         #Activation function
         self.act_f = nn.ReLU() 
 
+        self.resnet = ResNet()
+
     def forward(self, x):
-       
-        out_1, out_2 = self.act_f(ResNet().forward(x)[0]), self.act_f(ResNet().forward(x)[1])
         
+        out_1, out_2 = self.act_f(self.resnet.forward(x)[0]), self.act_f(self.resnet.forward(x)[1])
+
         mean_t = self.mean_encoder_1(out_1)
         log_std_t = self.log_std_1(out_1)
         
@@ -310,10 +312,10 @@ class CifarModel(BaseModel):
         
 class Cifar_Classifier(BaseModel):
 
-    def __init__(z_dim, hidden_dim, out_dim):
+    def __init__(self, z_dim, hidden_dim, out_dim):
         super().__init__()
 
-        self.num_layers = [z_dim] + hidden_dims
+        self.num_layers = [z_dim] + hidden_dim
         
         #Activation function
         self.act_f = nn.ReLU()
@@ -328,9 +330,11 @@ class Cifar_Classifier(BaseModel):
 
         self.classifier = nn.ModuleList(self.layers)
 
-    def forward(self, input):
+    def forward(self, x):
 
-        x = self.classifier(input)
-        out = self.output(x)
+        out = x
+        for layers in self.classifier:
+            out = layers(out)
+        out = self.output(out)
         out = torch.softmax(out, dim=1)
         return out
