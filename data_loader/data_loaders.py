@@ -1,10 +1,12 @@
 import os
+import torch
 import numpy as np
 from torchvision import datasets, transforms
 import torchtext
 from torch.utils.data import DataLoader, Dataset
 from base import BaseDataLoader
 from sklearn.preprocessing import MultiLabelBinarizer, normalize
+from torch.utils.data.sampler import SubsetRandomSampler
 
 
 class CIFAR100DataLoader(BaseDataLoader):
@@ -47,12 +49,35 @@ class YaleDataLoader(BaseDataLoader):
         print(self.dataset)
         super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
 
+class collator(object):
+    def __init__(self, device='cpu'):
+        self.device = device
+
+    def __call__(self, batch):
+        data, sensitive, targets = map(list, zip(*batch))
+        data = np.asarray(data)
+        outs = []
+        for column in data.T:
+            if len(np.unique(column)) == 2:
+                if (np.unique(column) == [0,1]).all():
+                    outs.append(column)
+                else:
+                    outs.append(column)
+            else:
+                outs.append(normalize(column.reshape(1, -1))[0]) #TODO check again reshaping
+        data = torch.tensor(outs).T
+        sensitive = torch.tensor(sensitive)
+        targets = torch.tensor(targets)
+        return data, sensitive, targets
+
+
 class GermanDataLoader(BaseDataLoader):
     def __init__(self, data_dir=None, batch_size=16, shuffle=False, validation_split=0.1, num_workers=2):
         trsfm = None #TODO
         txt_file = 'german.data'
         self.dataset = GermanCreditDatasetOneHot(txt_file, data_dir, trsfm)
-        super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
+        self.collator = collator()
+        super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers, self.collator)
 
 
 class GermanCreditDatasetOneHot(Dataset):
@@ -76,7 +101,6 @@ class GermanCreditDatasetOneHot(Dataset):
                 sensitive.append(0)
             else:
                 sensitive.append(1)
-#            sensitive.append(r[8])
         cat = np.unique(sensitive)
         cat = list(set(cat))
         cat.sort()
@@ -100,9 +124,7 @@ class GermanCreditDatasetOneHot(Dataset):
           else:
             features = transformed
         else:
-          features = np.column_stack((features, normalize(rows[:,i,None])))
-#          features = np.column_stack((features, rows[:,i,None]))
-#      features = np.asarray([[int(i) for i in j] for j in features])        
+          features = np.column_stack((features, rows[:,i,None].astype(int)))
       return features
 
     def __len__(self):
@@ -122,7 +144,9 @@ class AdultDataLoader(BaseDataLoader):
         trsfm = None #TODO
         training_file, test_file = 'adult.data', 'adult.test'
         self.dataset = AdultDatasetOneHot(training_file, test_file, data_dir, trsfm)
-        super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers, validation_appended_len=self.dataset.validation_len)
+        self.collator = collator()
+        super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers, self.collator, 		
+			validation_appended_len=self.dataset.validation_len)
 
 
 class AdultDatasetOneHot(Dataset):
@@ -178,8 +202,7 @@ class AdultDatasetOneHot(Dataset):
           if features is not None:
             features = np.column_stack((features, normalize(rows[:,i,None].astype(int))))
           else:
-            features = normalize(rows[:,i,None].astype(int))
-#        features = np.asarray([[int(i) for i in j] for j in features])        
+            features = normalize(rows[:,i,None].astype(int))       
       return features
 
     def __len__(self):
@@ -189,14 +212,15 @@ class AdultDatasetOneHot(Dataset):
         preprocessed_data = self.features[idx]
         if self.text_transforms is not None:
             preprocessed_data = self.text_transforms(preprocessed_data)
-        label = np.array(0) if '<=50K' in self.targets[idx] else np.array(1)
+        #label = np.array(0) if '<=50K' in self.targets[idx] else np.array(1)
+        label = 0 if '<=50K' in self.targets[idx] else 1
         sensitive = self.sensitive[idx]
         return preprocessed_data, sensitive, label
 
 
 if __name__ == '__main__':
+    german_dataset = GermanDataLoader('../data/')
     adult_dataset = AdultDatasetOneHot('adult.data', './data/')
-    german_dataset = GermanCreditDatasetOneHot('../data/german.data')
     german_dataloader = DataLoader(german_dataset, batch_size=16)
     cifar10 = CIFAR10DataLoader('./', batch_size=64)
     cifar100 = CIFAR100DataLoader('./', batch_size=16)

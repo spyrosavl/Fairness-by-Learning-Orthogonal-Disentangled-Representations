@@ -5,7 +5,7 @@ from base import BaseTrainer
 from utils import inf_loop, MetricTracker, Criterion
 from sklearn.linear_model import LogisticRegression
 from model.model import *
-
+from sklearn.preprocessing import normalize
 
 class Trainer(BaseTrainer):
     """
@@ -79,7 +79,6 @@ class Trainer(BaseTrainer):
                 if batch_idx == self.len_epoch:
                     break
         else:
-
             for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
                 data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
 
