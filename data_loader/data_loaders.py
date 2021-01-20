@@ -44,10 +44,14 @@ class MnistDataLoader(BaseDataLoader):
 
 class YaleDataLoader(BaseDataLoader):    
     def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
+        trsfm = transforms.Compose([
+            transforms.ToTensor()
+        ])
         self.data_dir = data_dir
-        self.dataset = datasets.ImageFolder(self.data_dir)
+        self.dataset = datasets.ImageFolder(self.data_dir, transform=trsfm)
         print(self.dataset)
         super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
+
 
 class collator(object):
     def __init__(self, device='cpu'):
