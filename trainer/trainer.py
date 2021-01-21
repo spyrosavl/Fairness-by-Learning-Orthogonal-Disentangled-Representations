@@ -41,7 +41,7 @@ class Trainer(BaseTrainer):
         self.train_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
         self.valid_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
 
-        self.criterion = Criterion(self.lambda_e, self.lambda_od, self.gamma_e, self.gamma_od, self.step_size)
+        self.criterion = Criterion(self.lambda_e, self.lambda_od, self.gamma_e, self.gamma_od, self.step_size).to(self.device)
         self.target_clf = LogisticRegression()
         self.sensitive_clf = LogisticRegression()
         self.tar_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=2)
@@ -66,7 +66,7 @@ class Trainer(BaseTrainer):
                 self.optimizer_1.zero_grad()
                 self.optimizer_2.zero_grad()
                 output = self.model(data)
-                loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
+                loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx).to(self.device)
                 loss.backward()
                 self.optimizer_1.step()
                 self.optimizer_2.step()
@@ -88,7 +88,7 @@ class Trainer(BaseTrainer):
                 
                 self.optimizer_1.zero_grad()
                 output = self.model(data)
-                loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
+                loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx).to(self.device)
                 loss.backward()
                 self.optimizer_1.step()
             
@@ -138,7 +138,7 @@ class Trainer(BaseTrainer):
                 t_predictions = self.tar_clf.forward(z_t)
                 t_pred = torch.argmax(t_predictions, dim=1)
                 print(t_pred)
-                loss_clf_1 = self.criterion_clf_2(t_pred.float(), target.float())
+                loss_clf_1 = self.criterion_clf_2(t_pred.float(), target.float()).to(self.device)
                 loss_clf_1.requires_grad = True
                 loss_clf_1.backward()
                 self.optimizer_3.step()
@@ -146,7 +146,7 @@ class Trainer(BaseTrainer):
                 s_predictions = self.sen_clf.forward(z_t)
                 s_pred = torch.argmax(s_predictions, dim=1)
                 print(s_pred)
-                loss_clf_2 = self.criterion_clf_1(s_predictions, sensitive)
+                loss_clf_2 = self.criterion_clf_1(s_predictions, sensitive).to(self.device)
                 loss_clf_2.backward()
                 self.optimizer_4.step()
                 
@@ -161,7 +161,7 @@ class Trainer(BaseTrainer):
                     data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
                     #import pdb; pdb.set_trace()
                     output = self.model(data)
-                    loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
+                    loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx).to(self.device)
 
                     z_t = output[2][0]
                     t_clf = self.target_clf.fit(z_t, target)
