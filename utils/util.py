@@ -84,6 +84,7 @@ class Criterion(nn.Module):
         self.step_size = step_size
 
         self.bce = nn.BCEWithLogitsLoss()
+        self.cross = nn.CrossEntropyLoss()
         self.kld = nn.KLDivLoss(reduction='batchmean')
         #TODO tensors through which we have to back propagate have to have require_grad = True (and be of type Parameter?)
 
@@ -93,8 +94,10 @@ class Criterion(nn.Module):
         z1, z2 = inputs[2]
         
         if dataset_name == 'CIFAR10DataLoader':
-            L_t = self.bce(y_zt, target[:,None].float())
-            L_s = self.bce(s_zt, sensitive[:,None].float())
+            s_pred = torch.argmax(s_zt, dim=1)
+            L_t = self.cross(y_zt, target)
+            L_s = self.bce(s_pred.float(), sensitive.float())
+            L_s.requires_grad = True
             mean_1, mean_2 = mean_tensors(np.zeros(128), 13), mean_tensors(np.zeros(128), 100)
             m_t = MultivariateNormal(mean_1, torch.eye(128))
             m_s = MultivariateNormal(mean_2, torch.eye(128))
