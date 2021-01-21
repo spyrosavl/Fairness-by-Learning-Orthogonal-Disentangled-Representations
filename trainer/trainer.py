@@ -5,7 +5,7 @@ from base import BaseTrainer
 from utils import inf_loop, MetricTracker, Criterion
 from sklearn.linear_model import LogisticRegression
 from model.model import *
-
+from sklearn.preprocessing import normalize
 
 class Trainer(BaseTrainer):
     """
@@ -46,8 +46,14 @@ class Trainer(BaseTrainer):
         self.sensitive_clf = LogisticRegression()
         self.tar_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=2)
         self.sen_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=10)
+
+        self.t_clf_tabular = Cifar_Classifier(z_dim=2, hidden_dim=[64, 64], out_dim=2)
+        self.s_clf_tabular = Cifar_Classifier(z_dim=2, hidden_dim=[64, 64], out_dim=2)
+
         self.criterion_clf_1 = nn.CrossEntropyLoss()
         self.criterion_clf_2 = nn.BCEWithLogitsLoss()
+
+        self.bce = nn.BCEWithLogitsLoss()
 
     def _train_epoch(self, epoch):
         """
@@ -83,18 +89,30 @@ class Trainer(BaseTrainer):
                 if batch_idx == self.len_epoch:
                     break
         else:
-
             for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
                 data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
                 
+                #import pdb; pdb.set_trace()
                 self.optimizer_1.zero_grad()
                 output = self.model(data)
+
+                s_zt = output[1][1]
+                L_s = self.bce(s_zt, sensitive.float())
+
+                for param in self.model.encoder.shared_model.parameters():
+                    param.requires_grad=False
+                L_s.backward(retain_graph=True)
+
+                for param in self.model.encoder.shared_model.parameters():
+                    param.requires_grad=True
+       
+
                 loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
                 loss.backward()
                 self.optimizer_1.step()
             
                 self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
-                self.train_metrics.update('loss', loss.item())
+                self.train_metrics.update('loss', loss.item()+L_s) #TODO
 
                 if batch_idx % self.log_step == 0:
                     self.logger.debug('Train Epoch: {} {} Loss: {:.6f}'.format(
@@ -160,11 +178,12 @@ class Trainer(BaseTrainer):
             with torch.no_grad():
                 for batch_idx, (data, sensitive, target) in enumerate(self.valid_data_loader):
                     data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
-                    #import pdb; pdb.set_trace()
                     output = self.model(data)
                     loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
 
+                    #import pdb; pdb.set_trace()
                     z_t = output[2][0]
+
                     t_clf = self.target_clf.fit(z_t, target)
                     t_predictions = torch.tensor(t_clf.predict(z_t))
                     s = torch.argmax(sensitive, dim=1)

@@ -104,46 +104,42 @@ class Criterion(nn.Module):
             
         else:
             L_t = self.bce(y_zt, target[:,None].float())
-            L_s = self.bce(s_zt, sensitive.float())
+#            L_s = self.bce(s_zt, sensitive.float())
             m_t = MultivariateNormal(torch.tensor([0.,1.]), torch.eye(2))
             m_s = MultivariateNormal(torch.tensor([1.,0.]), torch.eye(2))
  
         uniform = torch.rand(size=s_zs.size())
         Loss_e = self.kld(torch.log_softmax(s_zs, dim=1), uniform)
-        #Loss_e = L_e(s_zs)
     
         #TODO should the priors be the same for each loss computation?
         # --> should we define them in init?       
         prior_t=[]; prior_s=[]
         enc_dis_t=[]; enc_dis_s=[]
-        
-        for i in range(z1.shape[0]):
-            prior_t.append(m_t.sample())
-            prior_s.append(m_s.sample())
-            n_t = MultivariateNormal(mean_t[i], torch.diag(torch.exp(2*log_std_t[i])))
-            n_s = MultivariateNormal(mean_s[i], torch.diag(torch.exp(2*log_std_s[i])))
-            enc_dis_t.append(n_t.sample())
-            enc_dis_s.append(n_s.sample())
+
+        try:
+            for i in range(z1.shape[0]):
+                prior_t.append(m_t.sample())
+                prior_s.append(m_s.sample())
+                n_t = MultivariateNormal(mean_t[i], torch.diag(torch.exp(2*log_std_t[i])))
+                n_s = MultivariateNormal(mean_s[i], torch.diag(torch.exp(2*log_std_s[i])))
+                enc_dis_t.append(n_t.sample())
+                enc_dis_s.append(n_s.sample())
+        except:
+            import pdb; pdb.set_trace()
 
         prior_t = torch.stack(prior_t)
         prior_s = torch.stack(prior_s)
         enc_dis_t = torch.stack(enc_dis_t)
         enc_dis_s = torch.stack(enc_dis_s)
-#        import pdb; pdb.set_trace()
 
         L_zt = self.kld(torch.log_softmax(enc_dis_t, dim=1), prior_t)
         L_zs = self.kld(torch.log_softmax(enc_dis_s, dim=1), prior_s)
- 
-        #print('L_t: ', L_t)
-        #print('L_s: ', L_s)
-        #print('Loss_e: ', Loss_e)
-        #print('L_zt: ', L_zt)
-        #print('L_st: ', L_zs)
 
-       # import pdb; pdb.set_trace()
         lambda_e = self.lambda_e * self.gamma_e ** (current_step/self.step_size)
         lambda_od = self.lambda_od * self.gamma_od ** (current_step/self.step_size)
-        Loss = L_t + L_s + lambda_e * Loss_e + lambda_od * (L_zt + L_zs)
+#        Loss = L_t + L_s + lambda_e * Loss_e + lambda_od * (L_zt + L_zs)
+        Loss = L_t + lambda_e * Loss_e + lambda_od * (L_zt + L_zs)
+     
         return Loss
 
 
