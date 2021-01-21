@@ -61,7 +61,7 @@ class Trainer(BaseTrainer):
         if self.dataset_name == 'CIFAR10DataLoader':
             for batch_idx, (data, target) in enumerate(self.data_loader):
                 data, sensitive = data.to(self.device), target.to(self.device)
-                target = torch.tensor([i in self.living_classes for i in sensitive]).long()
+                target = torch.tensor([i in self.living_classes for i in sensitive]).long().to(self.device)
                 
                 self.optimizer_1.zero_grad()
                 self.optimizer_2.zero_grad()
@@ -127,7 +127,7 @@ class Trainer(BaseTrainer):
         if self.dataset_name == 'CIFAR10DataLoader':
             for batch_idx, (data, target) in enumerate(self.valid_data_loader):
                 data, sensitive = data.to(self.device), target.to(self.device)
-                target = torch.tensor([i in self.living_classes for i in sensitive]).long()
+                target = torch.tensor([i in self.living_classes for i in sensitive]).long().to(self.device)
                 
                 self.optimizer_3.zero_grad()
                 self.optimizer_4.zero_grad()
