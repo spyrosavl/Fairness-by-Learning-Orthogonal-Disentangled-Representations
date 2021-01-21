@@ -110,9 +110,9 @@ class Trainer(BaseTrainer):
                 loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
                 loss.backward()
                 self.optimizer_1.step()
-            
+                
                 self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
-                self.train_metrics.update('loss', loss.item()+L_s) #TODO
+                self.train_metrics.update('loss', loss.item()+L_s)
 
                 if batch_idx % self.log_step == 0:
                     self.logger.debug('Train Epoch: {} {} Loss: {:.6f}'.format(
@@ -179,6 +179,10 @@ class Trainer(BaseTrainer):
                 for batch_idx, (data, sensitive, target) in enumerate(self.valid_data_loader):
                     data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
                     output = self.model(data)
+
+                    s_zt = output[1][1]
+                    L_s = self.bce(s_zt, sensitive.float())
+
                     loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
 
                     #import pdb; pdb.set_trace()
@@ -191,7 +195,7 @@ class Trainer(BaseTrainer):
                     s_predictions = torch.tensor(s_clf.predict(z_t))
 
                     self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
-                    self.valid_metrics.update('loss', loss.item())
+                    self.valid_metrics.update('loss', loss.item() + L_s)
                     self.valid_metrics.update('accuracy', self.metric_ftns[0](t_predictions, target))
                     self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_predictions, s))
 
