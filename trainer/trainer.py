@@ -11,9 +11,9 @@ class Trainer(BaseTrainer):
     """
     Trainer class
     """
-    def __init__(self, model, criterion, metric_ftns, optimizer_1, optimizer_2 , config, device,
+    def __init__(self, model, criterion, metric_ftns, optimizer_1, optimizer_2 , optimizer_3, optimizer_4, config, device,
                  data_loader, valid_data_loader=None, lr_scheduler=None, len_epoch=None):
-        super().__init__(model, criterion, metric_ftns, optimizer_1, optimizer_2, config)
+        super().__init__(model, criterion, metric_ftns, optimizer_1, optimizer_2, optimizer_3, optimizer_4, config)
         self.config = config
         self.device = device
         
@@ -37,13 +37,17 @@ class Trainer(BaseTrainer):
         self.do_validation = self.valid_data_loader is not None
         self.lr_scheduler = None
         self.log_step = int(np.sqrt(data_loader.batch_size))
-
+        
         self.train_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
         self.valid_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
 
         self.criterion = Criterion(self.lambda_e, self.lambda_od, self.gamma_e, self.gamma_od, self.step_size)
         self.target_clf = LogisticRegression()
         self.sensitive_clf = LogisticRegression()
+        self.tar_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=2)
+        self.sen_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=10)
+        self.criterion_clf_1 = nn.CrossEntropyLoss()
+        self.criterion_clf_2 = nn.BCEWithLogitsLoss()
 
     def _train_epoch(self, epoch):
         """
@@ -56,8 +60,8 @@ class Trainer(BaseTrainer):
         self.train_metrics.reset()
         if self.dataset_name == 'CIFAR10DataLoader':
             for batch_idx, (data, target) in enumerate(self.data_loader):
-                data, target = data.to(self.device), target.to(self.device)
-                sensitive = torch.tensor([i in self.living_classes for i in target]).long()
+                data, sensitive = data.to(self.device), target.to(self.device)
+                target = torch.tensor([i in self.living_classes for i in sensitive]).long()
                 
                 self.optimizer_1.zero_grad()
                 self.optimizer_2.zero_grad()
@@ -81,7 +85,7 @@ class Trainer(BaseTrainer):
         else:
             for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
                 data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
-
+                
                 self.optimizer_1.zero_grad()
                 output = self.model(data)
                 loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
@@ -119,25 +123,40 @@ class Trainer(BaseTrainer):
         """
         self.model.eval()
         self.valid_metrics.reset()
-        with torch.no_grad():
-            if self.dataset_name == 'CIFAR10DataLoader':
-                for batch_idx, (data, target) in enumerate(self.valid_data_loader):
-                    data, target = data.to(self.device), target.to(self.device)
-                    sensitive = torch.tensor([i in self.living_classes for i in target]).long()
-                    
-                    output = self.model(data)
-                    loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
+        #with torch.no_grad():
+        if self.dataset_name == 'CIFAR10DataLoader':
+            for batch_idx, (data, target) in enumerate(self.valid_data_loader):
+                data, sensitive = data.to(self.device), target.to(self.device)
+                target = torch.tensor([i in self.living_classes for i in sensitive]).long()
+                
+                self.optimizer_3.zero_grad()
+                self.optimizer_4.zero_grad()
 
-                    z_t = output[2][0]
-                    t_predictions = Cifar_Classifier(z_dim=2, hidden_dim=[256, 128], out_dim=target.shape[0]).forward(z_t)
-                    s_predictions = Cifar_Classifier(z_dim=2, hidden_dim=[256, 128], out_dim=sensitive.shape[0]).forward(z_t)
+                output = self.model(data)
+                z_t = output[2][0]
 
-                    self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
-                    self.valid_metrics.update('loss', loss.item())
-                    self.valid_metrics.update('accuracy', self.metric_ftns[0](t_predictions, target))
-                    self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_predictions, sensitive))
+                t_predictions = self.tar_clf.forward(z_t)
+                t_pred = torch.argmax(t_predictions, dim=1)
+                print(t_pred)
+                loss_clf_1 = self.criterion_clf_2(t_pred.float(), target.float())
+                loss_clf_1.requires_grad = True
+                loss_clf_1.backward()
+                self.optimizer_3.step()
 
-            else:
+                s_predictions = self.sen_clf.forward(z_t)
+                s_pred = torch.argmax(s_predictions, dim=1)
+                print(s_pred)
+                loss_clf_2 = self.criterion_clf_1(s_predictions, sensitive)
+                loss_clf_2.backward()
+                self.optimizer_4.step()
+                
+                self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
+                self.valid_metrics.update('accuracy', self.metric_ftns[0](t_pred, target))
+                self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_pred, sensitive))
+
+        else:
+
+            with torch.no_grad():
                 for batch_idx, (data, sensitive, target) in enumerate(self.valid_data_loader):
                     data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
                     output = self.model(data)
