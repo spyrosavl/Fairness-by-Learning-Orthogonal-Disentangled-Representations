@@ -95,21 +95,25 @@ class Criterion(nn.Module):
         if dataset_name == 'CIFAR10DataLoader':
             L_t = self.bce(y_zt, target[:,None].float())
             L_s = self.bce(s_zt, sensitive[:,None].float())
+            mean_1, mean_2 = mean_tensors(np.zeros(128), 13), mean_tensors(np.zeros(128), 100)
+            m_t = MultivariateNormal(mean_1, torch.eye(128))
+            m_s = MultivariateNormal(mean_2, torch.eye(128))
+            
         else:
             L_t = self.bce(y_zt, target[:,None].float())
             L_s = self.bce(s_zt, sensitive.float())
+            m_t = MultivariateNormal(torch.tensor([0.,1.]), torch.eye(2))
+            m_s = MultivariateNormal(torch.tensor([1.,0.]), torch.eye(2))
  
         uniform = torch.rand(size=s_zs.size())
         Loss_e = self.kld(torch.log_softmax(s_zs, dim=1), uniform)
         #Loss_e = L_e(s_zs)
-
-        m_t = MultivariateNormal(torch.tensor([0.,1.]), torch.eye(2))
-        m_s = MultivariateNormal(torch.tensor([1.,0.]), torch.eye(2))
-
+    
         #TODO should the priors be the same for each loss computation?
         # --> should we define them in init?       
         prior_t=[]; prior_s=[]
         enc_dis_t=[]; enc_dis_s=[]
+        
         for i in range(z1.shape[0]):
             prior_t.append(m_t.sample())
             prior_s.append(m_s.sample())
