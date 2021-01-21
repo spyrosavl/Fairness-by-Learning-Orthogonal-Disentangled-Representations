@@ -206,7 +206,6 @@ class AdultDatasetOneHot(Dataset):
         preprocessed_data = self.features[idx]
         if self.text_transforms is not None:
             preprocessed_data = self.text_transforms(preprocessed_data)
-        #label = np.array(0) if '<=50K' in self.targets[idx] else np.array(1)
         label = 0 if '<=50K' in self.targets[idx] else 1
         sensitive = self.sensitive[idx]
         return preprocessed_data, sensitive, label
