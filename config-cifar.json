@@ -8,8 +8,8 @@
             "input_dim" : 64,
             "hidden_dim" : [256, 128],
             "z_dim" : 128,
-            "target_classes" : 1,
-            "sensitive_classes" : 1
+            "target_classes" : 2,
+            "sensitive_classes" : 10
         }
     },
     "data_loader": {
@@ -81,7 +81,7 @@
         "lambda_od" : 0.063,
         "gamma_e" : 1,
         "gamma_od" : 1.7,
-        "step_size" : 256
+        "step_size" : 30
  
 
 

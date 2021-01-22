@@ -35,11 +35,10 @@ def main(config):
     # prepare for (multi-device) GPU training
     device, device_ids = prepare_device(config['n_gpu'])
     model = model.to(device)
+    
     classifier_1 = Cifar_Classifier(z_dim=128, hidden_dim=[256,128], out_dim=2).to(device)
     classifier_2 = Cifar_Classifier(z_dim=128, hidden_dim=[256,128], out_dim=10).to(device)
-    encoder = CIFAR_Encoder(input_dim=64, z_dim=128).to(device)
-    decoder = Tabular_ModelDecoder(z_dim=128, hidden_dims=[256,128], target_classes=1, sensitive_classes=1).to(device)
-
+    
     if len(device_ids) > 1:
         model = torch.nn.DataParallel(model, device_ids=device_ids)
 
@@ -60,9 +59,9 @@ def main(config):
                         valid_data_loader=valid_data_loader,
                         lr_scheduler=lr_scheduler)
     else : 
-        trainable_params_1 = filter(lambda p: p.requires_grad, encoder.parameters())
+        trainable_params_1 = filter(lambda p: p.requires_grad, model.encoder.parameters())
         optimizer_1 = config.init_obj('optimizer_1', torch.optim, trainable_params_1)
-        trainable_params_2 = filter(lambda p: p.requires_grad, decoder.parameters())
+        trainable_params_2 = filter(lambda p: p.requires_grad, model.decoder.parameters())
         optimizer_2 = config.init_obj('optimizer_2', torch.optim, trainable_params_2)
         trainable_params_3 = filter(lambda p: p.requires_grad, classifier_1.parameters())
         optimizer_3 = config.init_obj('optimizer_3', torch.optim, trainable_params_3)
