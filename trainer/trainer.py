@@ -101,8 +101,8 @@ class Trainer(BaseTrainer):
                 self.optimizer_1.zero_grad()
                 output = self.model(data)
 
-                s_zt = output[1][1]
-                L_s = self.bce(s_zt, sensitive.float())
+                s_zs = output[1][2]
+                L_s = self.bce(s_zs, sensitive.float())
                 for param in self.model.encoder.shared_model.parameters():
                     param.requires_grad=False
                 L_s.backward(retain_graph=True)
