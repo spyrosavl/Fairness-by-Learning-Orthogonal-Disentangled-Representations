@@ -47,12 +47,7 @@ class Trainer(BaseTrainer):
         self.tar_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=2)
         self.sen_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=10)
 
-        self.t_clf_tabular = Cifar_Classifier(z_dim=2, hidden_dim=[64, 64], out_dim=2)
-        self.s_clf_tabular = Cifar_Classifier(z_dim=2, hidden_dim=[64, 64], out_dim=2)
-
-        self.criterion_clf_1 = nn.CrossEntropyLoss()
-        self.criterion_clf_2 = nn.BCEWithLogitsLoss()
-
+        self.cross = nn.CrossEntropyLoss()
         self.bce = nn.BCEWithLogitsLoss()
 
     def _train_epoch(self, epoch):
@@ -65,26 +60,36 @@ class Trainer(BaseTrainer):
         self.model.train()
         self.train_metrics.reset()
         if self.dataset_name == 'CIFAR10DataLoader':
-            for batch_idx, (data, target) in enumerate(self.data_loader):
-                data, sensitive = data.to(self.device), target.to(self.device)
+            for batch_idx, (data, sensitive) in enumerate(self.data_loader):
+                data, sensitive = data.to(self.device), sensitive.to(self.device)
                 target = torch.tensor([i in self.living_classes for i in sensitive]).long()
                 
                 self.optimizer_1.zero_grad()
                 self.optimizer_2.zero_grad()
                 output = self.model(data)
-                loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
+                s_zs = output[1][2]
+                L_s = self.cross(s_zs, sensitive)
+                
+                for param in self.model.encoder.resnet.parameters():
+                    param.requires_grad=False
+                L_s.backward(retain_graph=True)
+
+                for param in self.model.encoder.resnet.parameters():
+                    param.requires_grad=True
+                loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
+
                 loss.backward()
                 self.optimizer_1.step()
                 self.optimizer_2.step()
             
                 self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
-                self.train_metrics.update('loss', loss.item())
+                self.train_metrics.update('loss', loss.item()+L_s)
 
                 if batch_idx % self.log_step == 0:
                     self.logger.debug('Train Epoch: {} {} Loss: {:.6f}'.format(
                         epoch,
                         self._progress(batch_idx),
-                        loss.item()))
+                        loss.item()+L_s))
 
                 if batch_idx == self.len_epoch:
                     break
@@ -98,7 +103,6 @@ class Trainer(BaseTrainer):
 
                 s_zt = output[1][1]
                 L_s = self.bce(s_zt, sensitive.float())
-
                 for param in self.model.encoder.shared_model.parameters():
                     param.requires_grad=False
                 L_s.backward(retain_graph=True)
@@ -106,7 +110,6 @@ class Trainer(BaseTrainer):
                 for param in self.model.encoder.shared_model.parameters():
                     param.requires_grad=True
        
-
                 loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
                 loss.backward()
                 self.optimizer_1.step()
@@ -144,8 +147,8 @@ class Trainer(BaseTrainer):
         self.valid_metrics.reset()
         #with torch.no_grad():
         if self.dataset_name == 'CIFAR10DataLoader':
-            for batch_idx, (data, target) in enumerate(self.valid_data_loader):
-                data, sensitive = data.to(self.device), target.to(self.device)
+            for batch_idx, (data, sensitive) in enumerate(self.valid_data_loader):
+                data, sensitive = data.to(self.device), sensitive.to(self.device)
                 target = torch.tensor([i in self.living_classes for i in sensitive]).long()
                 
                 self.optimizer_3.zero_grad()
@@ -153,19 +156,16 @@ class Trainer(BaseTrainer):
 
                 output = self.model(data)
                 z_t = output[2][0]
-
+                
                 t_predictions = self.tar_clf.forward(z_t)
                 t_pred = torch.argmax(t_predictions, dim=1)
-                print(t_pred)
-                loss_clf_1 = self.criterion_clf_2(t_pred.float(), target.float())
-                loss_clf_1.requires_grad = True
-                loss_clf_1.backward()
+                loss_clf_1 = self.cross(t_predictions, target)
+                loss_clf_1.backward(retain_graph=True)
                 self.optimizer_3.step()
 
                 s_predictions = self.sen_clf.forward(z_t)
                 s_pred = torch.argmax(s_predictions, dim=1)
-                print(s_pred)
-                loss_clf_2 = self.criterion_clf_1(s_predictions, sensitive)
+                loss_clf_2 = self.cross(s_predictions, sensitive)
                 loss_clf_2.backward()
                 self.optimizer_4.step()
                 
