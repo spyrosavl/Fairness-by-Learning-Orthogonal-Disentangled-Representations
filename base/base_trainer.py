@@ -9,7 +9,7 @@ class BaseTrainer:
     """
     Base class for all trainers
     """
-    def __init__(self, model, criterion, metric_ftns, optimizer_1, optimizer_2, config):
+    def __init__(self, model, criterion, metric_ftns, optimizer_1, optimizer_2, optimizer_3, optimizer_4, config):
         self.config = config
         self.logger = config.get_logger('trainer', config['trainer']['verbosity'])
 
@@ -18,6 +18,8 @@ class BaseTrainer:
         self.metric_ftns = metric_ftns
         self.optimizer_1 = optimizer_1
         self.optimizer_2 = optimizer_2 
+        self.optimizer_3 = optimizer_3
+        self.optimizer_4 = optimizer_4
 
         cfg_trainer = config['trainer']
         self.epochs = cfg_trainer['epochs']
@@ -126,6 +128,8 @@ class BaseTrainer:
                 'state_dict': self.model.state_dict(),
                 'optimizer_1': self.optimizer_1.state_dict(),
                 'optimizer_2': self.optimizer_2.state_dict(),
+                'optimizer_3': self.optimizer_3.state_dict(),
+                'optimizer_4': self.optimizer_4.state_dict(),
                 'monitor_best': self.mnt_best,
                 'config': self.config
             }
@@ -170,5 +174,7 @@ class BaseTrainer:
             else:
                 self.optimizer.load_state_dict(checkpoint['optimizer_1'])
                 self.optimizer.load_state_dict(checkpoint['optimizer_2'])
+                self.optimizer.load_state_dict(checkpoint['optimizer_3'])
+                self.optimizer.load_state_dict(checkpoint['optimizer_4'])
                 
         self.logger.info("Checkpoint loaded. Resume training from epoch {}".format(self.start_epoch))

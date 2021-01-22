@@ -4,10 +4,25 @@ import numpy as np
 from types import SimpleNamespace
 from base import BaseModel
 
-#@torch.no_grad()
+
 def reparameterization(mean_t, mean_s, log_std_t, log_std_s):
     z1 = mean_t + torch.exp(log_std_t) @ torch.normal(torch.from_numpy(np.array([0.,1.]).T).float(), torch.eye(2))
     z2 = mean_s + torch.exp(log_std_s) @ torch.normal(torch.from_numpy(np.array([1.,0.]).T).float(), torch.eye(2))
+
+    return z1, z2
+
+def mean_tensors(mean, i):
+    
+    mean[i] = 1
+    mean_tens = torch.from_numpy(mean).float()
+    return mean_tens
+    
+def reparameterization_cifar(mean_t, mean_s, log_std_t, log_std_s):
+
+    mean_1 = mean_tensors(np.zeros(128), 13)
+    mean_2 = mean_tensors(np.zeros(128), 100)
+    z1 = mean_t + torch.exp(log_std_t) @ torch.normal(mean_1, torch.eye(128))
+    z2 = mean_s + torch.exp(log_std_s) @ torch.normal(mean_2, torch.eye(128))
 
     return z1, z2
 
@@ -21,7 +36,7 @@ class TabularModel(BaseModel):
 
 
     def forward(self, x):
-#        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         mean_t, mean_s, log_std_t, log_std_s = self.encoder(x)
         z1, z2 = reparameterization(mean_t, mean_s, log_std_t, log_std_s)
         y_zt, s_zt, s_zs = self.decoder(z1, z2) 
@@ -196,7 +211,7 @@ resnet_blocks_by_name = {
 
 class ResNet(BaseModel):
 
-    def __init__(self, num_classes=64, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="ResNetBlock", **kwargs):
+    def __init__(self, num_classes=64, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="PreActResNetBlock", **kwargs):
        
         super().__init__()
 
@@ -216,7 +231,8 @@ class ResNet(BaseModel):
         # A first convolution on the original image to scale up the channel size
         if self.hparams.block_class == PreActResNetBlock: # => Don't apply non-linearity on output
             self.input_net = nn.Sequential(
-                nn.Conv2d(3, c_hidden[0], kernel_size=3, padding=1))
+                nn.Conv2d(3, c_hidden[0], kernel_size=7, stride=2, padding=3),
+                nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
         else:
             self.input_net = nn.Sequential(
                 nn.Conv2d(3, c_hidden[0], kernel_size=7, stride=2, padding=3),
@@ -286,13 +302,13 @@ class CIFAR_Encoder(BaseModel):
 
     def forward(self, x):
         
-        out_1, out_2 = self.act_f(self.resnet.forward(x)[0]), self.act_f(self.resnet.forward(x)[1])
-
-        mean_t = self.mean_encoder_1(out_1)
-        log_std_t = self.log_std_1(out_1)
+        out_1, out_2 = self.resnet.forward(x)
         
-        mean_s = self.mean_encoder_2(out_2)
-        log_std_s = self.log_std_2(out_2)
+        mean_t = self.mean_encoder_1(self.act_f(out_1))
+        log_std_t = self.log_std_1(self.act_f(out_1))
+        
+        mean_s = self.mean_encoder_2(self.act_f(out_2))
+        log_std_s = self.log_std_2(self.act_f(out_2))
         
         return mean_t, mean_s, log_std_t, log_std_s
 
@@ -306,7 +322,7 @@ class CifarModel(BaseModel):
 
     def forward(self, x):
         mean_t, mean_s, log_std_t, log_std_s = self.encoder(x)
-        z1, z2 = reparameterization(mean_t, mean_s, log_std_t, log_std_s)
+        z1, z2 = reparameterization_cifar(mean_t, mean_s, log_std_t, log_std_s)
         y_zt, s_zt, s_zs = self.decoder(z1, z2) 
         return (mean_t, mean_s, log_std_t, log_std_s), (y_zt, s_zt, s_zs), (z1, z2)
         
@@ -336,5 +352,5 @@ class Cifar_Classifier(BaseModel):
         for layers in self.classifier:
             out = layers(out)
         out = self.output(out)
-        out = torch.softmax(out, dim=1)
+        #out = torch.softmax(out, dim=1)
         return out

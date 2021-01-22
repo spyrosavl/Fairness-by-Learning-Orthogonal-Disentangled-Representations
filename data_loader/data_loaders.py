@@ -44,10 +44,14 @@ class MnistDataLoader(BaseDataLoader):
 
 class YaleDataLoader(BaseDataLoader):    
     def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
+        trsfm = transforms.Compose([
+            transforms.ToTensor()
+        ])
         self.data_dir = data_dir
-        self.dataset = datasets.ImageFolder(self.data_dir)
+        self.dataset = datasets.ImageFolder(self.data_dir, transform=trsfm)
         print(self.dataset)
         super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
+
 
 class collator(object):
     def __init__(self, device='cpu'):
@@ -212,7 +216,6 @@ class AdultDatasetOneHot(Dataset):
         preprocessed_data = self.features[idx]
         if self.text_transforms is not None:
             preprocessed_data = self.text_transforms(preprocessed_data)
-        #label = np.array(0) if '<=50K' in self.targets[idx] else np.array(1)
         label = 0 if '<=50K' in self.targets[idx] else 1
         sensitive = self.sensitive[idx]
         return preprocessed_data, sensitive, label
