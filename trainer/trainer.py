@@ -5,6 +5,7 @@ from base import BaseTrainer
 from utils import inf_loop, MetricTracker, Criterion
 from sklearn.linear_model import LogisticRegression
 from model.model import *
+from model.loss import *
 from sklearn.preprocessing import normalize
 
 class Trainer(BaseTrainer):
@@ -68,8 +69,9 @@ class Trainer(BaseTrainer):
                 self.optimizer_2.zero_grad()
                 output = self.model(data)
                 s_zs = output[1][2]
-                L_s = self.cross(s_zs, sensitive)
                 
+                L_s = self.cross(s_zs, sensitive)
+               
                 for param in self.model.encoder.resnet.parameters():
                     param.requires_grad=False
                 L_s.backward(retain_graph=True)
@@ -109,7 +111,7 @@ class Trainer(BaseTrainer):
 
                 for param in self.model.encoder.shared_model.parameters():
                     param.requires_grad=True
-       
+                
                 loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
                 loss.backward()
                 self.optimizer_1.step()
@@ -158,13 +160,15 @@ class Trainer(BaseTrainer):
                 z_t = output[2][0]
                 
                 t_predictions = self.tar_clf.forward(z_t)
-                t_pred = torch.argmax(t_predictions, dim=1)
+                t_pred = torch.argmax(torch.softmax(t_predictions, dim=1), dim=1)
+                print(t_pred)
                 loss_clf_1 = self.cross(t_predictions, target)
                 loss_clf_1.backward(retain_graph=True)
                 self.optimizer_3.step()
 
                 s_predictions = self.sen_clf.forward(z_t)
-                s_pred = torch.argmax(s_predictions, dim=1)
+                s_pred = torch.argmax(torch.softmax(s_predictions, dim=1), dim=1)
+                print(s_pred)
                 loss_clf_2 = self.cross(s_predictions, sensitive)
                 loss_clf_2.backward()
                 self.optimizer_4.step()
@@ -182,7 +186,6 @@ class Trainer(BaseTrainer):
 
                     s_zt = output[1][1]
                     L_s = self.bce(s_zt, sensitive.float())
-
                     loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
 
                     #import pdb; pdb.set_trace()

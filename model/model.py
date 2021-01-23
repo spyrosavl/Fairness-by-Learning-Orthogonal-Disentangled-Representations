@@ -6,8 +6,8 @@ from base import BaseModel
 
 
 def reparameterization(mean_t, mean_s, log_std_t, log_std_s):
-    z1 = mean_t + torch.exp(log_std_t) @ torch.normal(torch.from_numpy(np.array([0.,1.]).T).float(), torch.eye(2))
-    z2 = mean_s + torch.exp(log_std_s) @ torch.normal(torch.from_numpy(np.array([1.,0.]).T).float(), torch.eye(2))
+    z1 = mean_t + torch.exp(log_std_t/2) @ torch.normal(torch.from_numpy(np.array([0.,1.]).T).float(), torch.eye(2))
+    z2 = mean_s + torch.exp(log_std_s/2) @ torch.normal(torch.from_numpy(np.array([1.,0.]).T).float(), torch.eye(2))
 
     return z1, z2
 
@@ -21,8 +21,8 @@ def reparameterization_cifar(mean_t, mean_s, log_std_t, log_std_s):
 
     mean_1 = mean_tensors(np.zeros(128), 13)
     mean_2 = mean_tensors(np.zeros(128), 100)
-    z1 = mean_t + torch.exp(log_std_t) @ torch.normal(mean_1, torch.eye(128))
-    z2 = mean_s + torch.exp(log_std_s) @ torch.normal(mean_2, torch.eye(128))
+    z1 = mean_t + torch.exp(log_std_t/2) @ torch.normal(mean_1, torch.eye(128))
+    z2 = mean_s + torch.exp(log_std_s/2) @ torch.normal(mean_2, torch.eye(128))
 
     return z1, z2
 
@@ -211,7 +211,7 @@ resnet_blocks_by_name = {
 
 class ResNet(BaseModel):
 
-    def __init__(self, num_classes=64, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="PreActResNetBlock", **kwargs):
+    def __init__(self, num_classes=64, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="ResNetBlock", **kwargs):
        
         super().__init__()
 

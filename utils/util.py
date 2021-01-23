@@ -92,7 +92,7 @@ class Criterion(nn.Module):
         mean_t, mean_s, log_std_t, log_std_s = inputs[0]
         y_zt, s_zt, s_zs = inputs[1]
         z1, z2 = inputs[2]
-        
+
         if dataset_name == 'CIFAR10DataLoader':
             L_t = self.cross(y_zt, target)
             mean_1, mean_2 = mean_tensors(np.zeros(128), 50), mean_tensors(np.zeros(128), 100)
@@ -103,10 +103,11 @@ class Criterion(nn.Module):
             L_t = self.bce(y_zt, target[:,None].float())
             m_t = MultivariateNormal(torch.tensor([0.,1.]), torch.eye(2))
             m_s = MultivariateNormal(torch.tensor([1.,0.]), torch.eye(2))
- 
-        uniform = torch.rand(size=s_zs.size())
-        Loss_e = self.kld(torch.log_softmax(s_zt, dim=1), uniform)
         
+        uniform = torch.rand(size=s_zs.size())
+        Loss_e = self.kld(torch.log_softmax(uniform, dim=1), torch.softmax(s_zs, dim=1))
+        #Loss_e = L_e(s_zs)
+        #print(Loss_e)
         #TODO should the priors be the same for each loss computation?
         # --> should we define them in init?       
         prior_t=[]; prior_s=[]
@@ -128,15 +129,12 @@ class Criterion(nn.Module):
         enc_dis_t = torch.stack(enc_dis_t)
         enc_dis_s = torch.stack(enc_dis_s)
         
-        L_zt = self.kld(torch.log_softmax(enc_dis_t, dim=1), prior_t)
-        L_zs = self.kld(torch.log_softmax(enc_dis_s, dim=1), prior_s)
+        #print(enc_dis_s)
+       
+        #print(torch.softmax(enc_dis_t, dim=1))
+        L_zt = self.kld(torch.log_softmax(prior_t, dim=1), torch.softmax(enc_dis_t, dim=1))
+        L_zs = self.kld(torch.log_softmax(prior_s, dim=1), torch.softmax(enc_dis_s, dim=1))
         #print(L_zs, L_zt)
-        #print('################################################')
-        #print(L_zt)
-        #print('################################################')
-        #print(L_zs)
-        #print('################################################')
-
         lambda_e = self.lambda_e * self.gamma_e ** (current_step/self.step_size)
         lambda_od = self.lambda_od * self.gamma_od ** (current_step/self.step_size)
         Loss = L_t + lambda_e * Loss_e + lambda_od * (L_zt + L_zs)
