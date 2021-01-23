@@ -192,15 +192,13 @@ class Trainer(BaseTrainer):
                 z_t = output[2][0]
                 
                 t_predictions = self.tar_clf.forward(z_t)
-                t_pred = torch.argmax(torch.softmax(t_predictions, dim=1), dim=1)
-                print(t_pred)
+                t_pred = torch.argmax(torch.softmax(t_predictions, dim=0), dim=1)
                 loss_clf_1 = self.cross(t_predictions, target)
                 loss_clf_1.backward(retain_graph=True)
                 self.optimizer_3.step()
 
                 s_predictions = self.sen_clf.forward(z_t)
-                s_pred = torch.argmax(torch.softmax(s_predictions, dim=1), dim=1)
-                print(s_pred)
+                s_pred = torch.argmax(torch.softmax(s_predictions, dim=0), dim=1)
                 loss_clf_2 = self.cross(s_predictions, sensitive)
                 loss_clf_2.backward()
                 self.optimizer_4.step()

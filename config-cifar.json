@@ -5,7 +5,7 @@
     "arch": {
         "type": "CifarModel",
         "args": {
-            "input_dim" : 64,
+            "input_dim" : 128,
             "hidden_dim" : [256, 128],
             "z_dim" : 128,
             "target_classes" : 2,
@@ -16,7 +16,7 @@
         "type": "CIFAR10DataLoader",
         "args":{
             "data_dir": "data/",
-            "batch_size": 256,
+            "batch_size": 64,
             "shuffle": true,
             "validation_split": 0.1,
             "num_workers": 2
