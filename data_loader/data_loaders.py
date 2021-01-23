@@ -7,7 +7,8 @@ from torch.utils.data import DataLoader, Dataset
 from base import BaseDataLoader
 from sklearn.preprocessing import MultiLabelBinarizer, normalize
 from torch.utils.data.sampler import SubsetRandomSampler
-
+import re
+from PIL import Image
 
 class CIFAR100DataLoader(BaseDataLoader):
     def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
@@ -42,16 +43,74 @@ class MnistDataLoader(BaseDataLoader):
         print(self.dataset)
         super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
 
-class YaleDataLoader(BaseDataLoader):    
-    def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
+class YaleDataset(Dataset):
+    def __init__(self, data_dir):
+        self.data_dir = data_dir
+        self.illuminationsClasses = [ (A,E) for A in range(-130,135, 5) for E in range(-40,95,5)]
+        self.images, self.targets, self.sensitive = self.get_data(self.data_dir)
+    
+    def get_data(self, data_dir):
+        images=[];  targets=[]; sensitive=[]
+        img_name_pattern = re.compile("yaleB\d{2}_P00A(\+|-)\d*E(\+|-)\d*\.pgm")
+        for dir_index, directory in enumerate(os.listdir(data_dir)):
+            if not os.path.isdir(os.path.join(data_dir, directory)):
+                continue
+            for image_name in os.listdir(os.path.join(data_dir, directory)):
+                if not img_name_pattern.match(image_name):
+                    continue
+                images.append(os.path.join(data_dir, directory, image_name))
+                illumination_pattern = re.compile("yaleB\d{2}_P00A(-\d*|\+\d*)E(-\d*|\+\d*)\.pgm")
+                A, E = illumination_pattern.findall(image_name)[0]
+                targets.append(self.illuminationsClasses.index((int(A),int(E)))) # illumination id
+                sensitive.append(dir_index) #person id
+        return images, targets, sensitive
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
         trsfm = transforms.Compose([
             transforms.ToTensor()
         ])
+        data = Image.open(self.images[idx])
+        data = trsfm(data)
+        return data, self.sensitive[idx], self.targets[idx]
+
+class YaleDataLoader(BaseDataLoader):    
+    def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
         self.data_dir = data_dir
-        self.dataset = datasets.ImageFolder(self.data_dir, transform=trsfm)
+        self.dataset = YaleDataset(self.data_dir)
         print(self.dataset)
         super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
 
+    def _split_sampler(self, split):
+        idx_full = np.arange(self.n_samples)
+        
+        if self.validation_appended_len is None:
+            np.random.shuffle(idx_full)
+            if isinstance(split, int):
+                assert split > 0
+                assert split < self.n_samples, "validation set size is configured to be larger than entire dataset."
+                len_valid = split
+            else:
+                len_valid = int(self.n_samples * split)
+
+            valid_idx = idx_full[0:len_valid]
+            train_idx = np.delete(idx_full, np.arange(0, len_valid))
+        else:
+            #validation set is appended in the end of dataset
+            len_valid = self.validation_appended_len
+            valid_idx = idx_full[-len_valid:]
+            train_idx = idx_full[:-len_valid]
+
+        train_sampler = SubsetRandomSampler(train_idx)
+        valid_sampler = SubsetRandomSampler(valid_idx)
+
+        # turn off shuffle option which is mutually exclusive with sampler
+        self.shuffle = False
+        self.n_samples = len(train_idx)
+
+        return train_sampler, valid_sampler
 
 class collator(object):
     def __init__(self, device='cpu'):
