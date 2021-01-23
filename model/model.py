@@ -6,8 +6,8 @@ from base import BaseModel
 
 
 def reparameterization(mean_t, mean_s, log_std_t, log_std_s):
-    z1 = mean_t + torch.exp(log_std_t) @ torch.normal(torch.from_numpy(np.array([0.,1.]).T).float(), torch.eye(2))
-    z2 = mean_s + torch.exp(log_std_s) @ torch.normal(torch.from_numpy(np.array([1.,0.]).T).float(), torch.eye(2))
+    z1 = mean_t + torch.exp(log_std_t/2) @ torch.normal(torch.from_numpy(np.array([0.,1.]).T).float(), torch.eye(2))
+    z2 = mean_s + torch.exp(log_std_s/2) @ torch.normal(torch.from_numpy(np.array([1.,0.]).T).float(), torch.eye(2))
 
     return z1, z2
 
@@ -21,8 +21,8 @@ def reparameterization_cifar(mean_t, mean_s, log_std_t, log_std_s):
 
     mean_1 = mean_tensors(np.zeros(128), 13)
     mean_2 = mean_tensors(np.zeros(128), 100)
-    z1 = mean_t + torch.exp(log_std_t) @ torch.normal(mean_1, torch.eye(128))
-    z2 = mean_s + torch.exp(log_std_s) @ torch.normal(mean_2, torch.eye(128))
+    z1 = mean_t + torch.exp(log_std_t/2) @ torch.normal(mean_1, torch.eye(128))
+    z2 = mean_s + torch.exp(log_std_s/2) @ torch.normal(mean_2, torch.eye(128))
 
     return z1, z2
 
@@ -147,7 +147,7 @@ act_fn_by_name = {
 
 class ResNetBlock(BaseModel):
 
-    def __init__(self, c_in=64, act_fn=act_fn_by_name["relu"], subsample=True, c_out=-1):
+    def __init__(self, c_in=1, act_fn=act_fn_by_name["relu"], subsample=True, c_out=-1):
         
         super().__init__()
 
@@ -176,7 +176,7 @@ class ResNetBlock(BaseModel):
 
 class PreActResNetBlock(BaseModel):
 
-    def __init__(self, c_in=1, act_fn=act_fn_by_name["relu"], subsample=False, c_out=-1):
+    def __init__(self, c_in=1, act_fn=act_fn_by_name["relu"], subsample=True, c_out=-1):
         
         super().__init__()
 
@@ -211,7 +211,7 @@ resnet_blocks_by_name = {
 
 class ResNet(BaseModel):
 
-    def __init__(self, num_classes=64, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="PreActResNetBlock", **kwargs):
+    def __init__(self, num_classes=128, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="ResNetBlock", **kwargs):
        
         super().__init__()
 
@@ -287,7 +287,7 @@ class CIFAR_Encoder(BaseModel):
         super(CIFAR_Encoder, self).__init__()
         
         self.z_dim = z_dim
-
+        
         #Output layers for each encoder
         self.mean_encoder_1 = nn.Linear(input_dim, z_dim)
         self.log_std_1      = nn.Linear(input_dim, z_dim)
@@ -354,3 +354,19 @@ class Cifar_Classifier(BaseModel):
         out = self.output(out)
         #out = torch.softmax(out, dim=1)
         return out
+
+class YaleModel(BaseModel):
+
+    def __init__(self, input_dim, hidden_dim, z_dim, target_classes, sensitive_classes):
+        super(YaleModel, self).__init__()
+
+        self.encoder = Tabular_ModelEncoder(input_dim, hidden_dim, z_dim)
+        self.decoder = Tabular_ModelDecoder(z_dim, [hidden_dim, hidden_dim], target_classes, sensitive_classes)
+
+
+    def forward(self, x):
+        x = torch.flatten(x)
+        mean_t, mean_s, log_std_t, log_std_s = self.encoder(x)
+        z1, z2 = reparameterization(mean_t, mean_s, log_std_t, log_std_s)
+        y_zt, s_zt, s_zs = self.decoder(z1, z2) 
+        return (mean_t, mean_s, log_std_t, log_std_s), (y_zt, s_zt, s_zs), (z1, z2)

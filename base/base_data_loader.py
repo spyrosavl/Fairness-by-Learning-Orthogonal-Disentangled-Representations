@@ -30,7 +30,6 @@ class BaseDataLoader(DataLoader):
             return None, None
 
         idx_full = np.arange(self.n_samples)
-
         np.random.seed(0)
         
         if self.validation_appended_len is None:
