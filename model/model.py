@@ -147,7 +147,7 @@ act_fn_by_name = {
 
 class ResNetBlock(BaseModel):
 
-    def __init__(self, c_in=64, act_fn=act_fn_by_name["relu"], subsample=True, c_out=-1):
+    def __init__(self, c_in=1, act_fn=act_fn_by_name["relu"], subsample=True, c_out=-1):
         
         super().__init__()
 
@@ -176,7 +176,7 @@ class ResNetBlock(BaseModel):
 
 class PreActResNetBlock(BaseModel):
 
-    def __init__(self, c_in=1, act_fn=act_fn_by_name["relu"], subsample=False, c_out=-1):
+    def __init__(self, c_in=1, act_fn=act_fn_by_name["relu"], subsample=True, c_out=-1):
         
         super().__init__()
 
@@ -211,7 +211,7 @@ resnet_blocks_by_name = {
 
 class ResNet(BaseModel):
 
-    def __init__(self, num_classes=64, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="ResNetBlock", **kwargs):
+    def __init__(self, num_classes=128, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="ResNetBlock", **kwargs):
        
         super().__init__()
 
@@ -287,7 +287,7 @@ class CIFAR_Encoder(BaseModel):
         super(CIFAR_Encoder, self).__init__()
         
         self.z_dim = z_dim
-
+        
         #Output layers for each encoder
         self.mean_encoder_1 = nn.Linear(input_dim, z_dim)
         self.log_std_1      = nn.Linear(input_dim, z_dim)

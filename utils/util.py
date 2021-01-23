@@ -117,8 +117,8 @@ class Criterion(nn.Module):
             for i in range(z1.shape[0]):
                 prior_t.append(m_t.sample())
                 prior_s.append(m_s.sample())
-                n_t = MultivariateNormal(mean_t[i], torch.diag(2*torch.exp(log_std_t[i])))
-                n_s = MultivariateNormal(mean_s[i], torch.diag(2*torch.exp(log_std_s[i])))
+                n_t = MultivariateNormal(mean_t[i], torch.diag(torch.exp(log_std_t[i])))
+                n_s = MultivariateNormal(mean_s[i], torch.diag(torch.exp(log_std_s[i])))
                 enc_dis_t.append(n_t.sample())
                 enc_dis_s.append(n_s.sample())
         except:
