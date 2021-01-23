@@ -5,7 +5,7 @@ from torchvision import datasets, transforms
 import torchtext
 from torch.utils.data import DataLoader, Dataset
 from base import BaseDataLoader
-from sklearn.preprocessing import MultiLabelBinarizer, normalize, LabelBinarizer
+from sklearn.preprocessing import MultiLabelBinarizer, normalize, LabelBinarizer, LabelEncoder
 from torch.utils.data.sampler import SubsetRandomSampler
 import re
 from PIL import Image
@@ -55,8 +55,9 @@ class YaleDataset(Dataset):
         
         self.targetClasses = len(list(set(targets)))
         self.illuminationsClasses = [i for i in range(len(list(set(illuminations))))]
-        sensitive = LabelBinarizer().fit_transform([str(i) for i in illuminations])
-        targets = LabelBinarizer().fit_transform(targets)
+        # sensitive = LabelBinarizer().fit_transform([str(i) for i in illuminations])
+        # targets = LabelBinarizer().fit_transform(targets)
+        sensitive = LabelEncoder().fit_transform([str(i) for i in illuminations])
         return images, targets, sensitive, illuminations
 
     def __len__(self):

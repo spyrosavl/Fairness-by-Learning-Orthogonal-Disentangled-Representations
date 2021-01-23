@@ -95,7 +95,39 @@ class Trainer(BaseTrainer):
 
                 if batch_idx == self.len_epoch:
                     break
-        else:
+        elif self.dataset_name == 'YaleDataLoader':
+            for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
+                data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
+                
+                import pdb; pdb.set_trace()
+                self.optimizer_1.zero_grad()
+                output = self.model(data)
+
+                s_zs = output[1][2]
+                L_s = self.cross(s_zs, sensitive)
+                for param in self.model.encoder.shared_model.parameters():
+                    param.requires_grad=False
+                L_s.backward(retain_graph=True)
+
+                for param in self.model.encoder.shared_model.parameters():
+                    param.requires_grad=True
+                
+                loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
+                loss.backward()
+                self.optimizer_1.step()
+                
+                self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
+                self.train_metrics.update('loss', loss.item()+L_s)
+
+                if batch_idx % self.log_step == 0:
+                    self.logger.debug('Train Epoch: {} {} Loss: {:.6f}'.format(
+                        epoch,
+                        self._progress(batch_idx),
+                        loss.item()))
+
+                if batch_idx == self.len_epoch:
+                    break
+        elif self.dataset_name in ["AdultDataLoader", "GermanDataLoader"]:
             for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
                 data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
                 
