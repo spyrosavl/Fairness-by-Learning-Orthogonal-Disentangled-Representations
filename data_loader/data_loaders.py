@@ -5,10 +5,11 @@ from torchvision import datasets, transforms
 import torchtext
 from torch.utils.data import DataLoader, Dataset
 from base import BaseDataLoader
-from sklearn.preprocessing import MultiLabelBinarizer, normalize
+from sklearn.preprocessing import MultiLabelBinarizer, normalize, LabelBinarizer
 from torch.utils.data.sampler import SubsetRandomSampler
 import re
 from PIL import Image
+
 
 class CIFAR100DataLoader(BaseDataLoader):
     def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
@@ -29,24 +30,11 @@ class CIFAR10DataLoader(BaseDataLoader):
         self.dataset = datasets.CIFAR10(self.data_dir, train=training, download=True, transform=trsfm)
         super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
 
-class MnistDataLoader(BaseDataLoader):
-    
-    ### MNIST data loading demo using BaseDataLoader
-    
-    def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
-        trsfm = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
-        ])
-        self.data_dir = data_dir
-        self.dataset = datasets.MNIST(self.data_dir, train=training, download=True, transform=trsfm)
-        print(self.dataset)
-        super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
-
 class YaleDataset(Dataset):
     def __init__(self, data_dir):
         self.data_dir = data_dir
-        self.illuminationsClasses = [ (A,E) for A in range(-130,135, 5) for E in range(-40,95,5)]
+        self.targetClasses = None
+        self.illuminationsClasses = None #[ (A,E) for A in range(-130,135, 5) for E in range(-40,95,5)]
         self.illuminationsClassesTraining = [ (0, 0), (-130, 20), (-110, -20), (130, 20), (110, -20) ]
         self.images, self.targets, self.sensitive, self.illuminations = self.get_data(self.data_dir)
     
@@ -62,9 +50,13 @@ class YaleDataset(Dataset):
                 images.append(os.path.join(data_dir, directory, image_name))
                 illumination_pattern = re.compile("yaleB\d{2}_P00A(-\d*|\+\d*)E(-\d*|\+\d*)\.pgm")
                 A, E = illumination_pattern.findall(image_name)[0]
-                illuminations.append((int(A),int(E)))
-                targets.append(self.illuminationsClasses.index((int(A),int(E)))) # illumination id
-                sensitive.append(dir_index) #person id
+                illuminations.append((int(A),int(E))) #illumination
+                targets.append(dir_index) #person id
+        
+        self.targetClasses = len(list(set(targets)))
+        self.illuminationsClasses = [i for i in range(len(list(set(illuminations))))]
+        sensitive = LabelBinarizer().fit_transform([str(i) for i in illuminations])
+        targets = LabelBinarizer().fit_transform(targets)
         return images, targets, sensitive, illuminations
 
     def __len__(self):
@@ -95,10 +87,6 @@ class YaleDataLoader(BaseDataLoader):
 
         train_sampler = SubsetRandomSampler(train_idx)
         valid_sampler = SubsetRandomSampler(valid_idx)
-        print('-----------------')
-        for i in train_idx:
-            print(self.dataset.images[i])
-        print(len(train_idx), len(valid_idx))
         # turn off shuffle option which is mutually exclusive with sampler
         self.shuffle = False
         self.n_samples = len(train_idx)

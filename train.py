@@ -47,7 +47,7 @@ def main(config):
     metrics = [getattr(module_metric, met) for met in config['metrics']]
 
     # build optimizer, learning rate scheduler. delete every lines containing lr_scheduler for disabling scheduler
-    if config["arch"]["type"] == "TabularModel" :
+    if config["arch"]["type"] in ["TabularModel", "YaleModel"]:
         trainable_params = filter(lambda p: p.requires_grad, model.parameters())
         optimizer = config.init_obj('optimizer', torch.optim, trainable_params)
         lr_scheduler = config.init_obj('lr_scheduler', torch.optim.lr_scheduler, optimizer)

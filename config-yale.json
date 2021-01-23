@@ -3,13 +3,13 @@
     "n_gpu": 1,
 
     "arch": {
-        "type": "TabularModel",
+        "type": "YaleModel",
         "args": {
-            "input_dim" : 32256,
+            "input_dim" : 2064384,
             "hidden_dim" : 100,
-            "z_dim" : 100,
-            "target_classes" : 28,
-            "sensitive_classes" : 5
+            "z_dim" : 2,
+            "target_classes" : 38,
+            "sensitive_classes" : 64
         }
     },
     "data_loader": {

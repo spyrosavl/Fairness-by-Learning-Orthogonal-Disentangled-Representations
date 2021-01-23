@@ -354,3 +354,19 @@ class Cifar_Classifier(BaseModel):
         out = self.output(out)
         #out = torch.softmax(out, dim=1)
         return out
+
+class YaleModel(BaseModel):
+
+    def __init__(self, input_dim, hidden_dim, z_dim, target_classes, sensitive_classes):
+        super(YaleModel, self).__init__()
+
+        self.encoder = Tabular_ModelEncoder(input_dim, hidden_dim, z_dim)
+        self.decoder = Tabular_ModelDecoder(z_dim, [hidden_dim, hidden_dim], target_classes, sensitive_classes)
+
+
+    def forward(self, x):
+        x = torch.flatten(x)
+        mean_t, mean_s, log_std_t, log_std_s = self.encoder(x)
+        z1, z2 = reparameterization(mean_t, mean_s, log_std_t, log_std_s)
+        y_zt, s_zt, s_zs = self.decoder(z1, z2) 
+        return (mean_t, mean_s, log_std_t, log_std_s), (y_zt, s_zt, s_zs), (z1, z2)
