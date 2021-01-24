@@ -8,11 +8,9 @@ from base import BaseModel
 def reparameterization(mean_t, mean_s, log_std_t, log_std_s):
     z1 = mean_t + torch.exp(log_std_t/2) @ torch.normal(torch.from_numpy(np.array([0.,1.]).T).float(), torch.eye(2))
     z2 = mean_s + torch.exp(log_std_s/2) @ torch.normal(torch.from_numpy(np.array([1.,0.]).T).float(), torch.eye(2))
-
     return z1, z2
 
 def mean_tensors(mean, i):
-    
     mean[i] = 1
     mean_tens = torch.from_numpy(mean).float()
     return mean_tens
@@ -23,6 +21,15 @@ def reparameterization_cifar(mean_t, mean_s, log_std_t, log_std_s):
     mean_2 = mean_tensors(np.zeros(128), 100)
     z1 = mean_t + torch.exp(log_std_t/2) @ torch.normal(mean_1, torch.eye(128))
     z2 = mean_s + torch.exp(log_std_s/2) @ torch.normal(mean_2, torch.eye(128))
+
+    return z1, z2
+
+def reparameterization_yale(mean_t, mean_s, log_std_t, log_std_s):
+
+    mean_1 = mean_tensors(np.zeros(100), 13)
+    mean_2 = mean_tensors(np.zeros(100), 50)
+    z1 = mean_t + torch.exp(log_std_t/2) @ torch.normal(mean_1, torch.eye(100))
+    z2 = mean_s + torch.exp(log_std_s/2) @ torch.normal(mean_2, torch.eye(100))
 
     return z1, z2
 
@@ -365,8 +372,8 @@ class YaleModel(BaseModel):
 
 
     def forward(self, x):
-        x = torch.flatten(x)
+        x = torch.flatten(x, start_dim=1)
         mean_t, mean_s, log_std_t, log_std_s = self.encoder(x)
-        z1, z2 = reparameterization(mean_t, mean_s, log_std_t, log_std_s)
+        z1, z2 = reparameterization_yale(mean_t, mean_s, log_std_t, log_std_s)
         y_zt, s_zt, s_zs = self.decoder(z1, z2) 
         return (mean_t, mean_s, log_std_t, log_std_s), (y_zt, s_zt, s_zs), (z1, z2)

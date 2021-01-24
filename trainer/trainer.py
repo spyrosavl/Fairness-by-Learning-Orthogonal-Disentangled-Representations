@@ -47,6 +47,8 @@ class Trainer(BaseTrainer):
         self.sensitive_clf = LogisticRegression()
         self.tar_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=2)
         self.sen_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=10)
+        self.yale_tar_clf = Cifar_Classifier(z_dim=100, hidden_dim=[100], out_dim=38)
+        self.yale_sen_clf = Cifar_Classifier(z_dim=100, hidden_dim=[100], out_dim=64)
 
         self.cross = nn.CrossEntropyLoss()
         self.bce = nn.BCEWithLogitsLoss()
@@ -99,12 +101,13 @@ class Trainer(BaseTrainer):
             for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
                 data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
                 
-                import pdb; pdb.set_trace()
+                #import pdb; pdb.set_trace()
                 self.optimizer_1.zero_grad()
                 output = self.model(data)
 
                 s_zs = output[1][2]
-                L_s = self.cross(s_zs, sensitive)
+                sensitive_arg_max = sensitive.argmax(dim=1)
+                L_s = self.cross(s_zs, sensitive_arg_max)
                 for param in self.model.encoder.shared_model.parameters():
                     param.requires_grad=False
                 L_s.backward(retain_graph=True)
@@ -206,9 +209,45 @@ class Trainer(BaseTrainer):
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                 self.valid_metrics.update('accuracy', self.metric_ftns[0](t_pred, target))
                 self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_pred, sensitive))
+        elif self.dataset_name == 'YaleDataLoader':
+            for batch_idx, (data, sensitive, target) in enumerate(self.valid_data_loader):
+                data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
+                
+                self.optimizer_1.zero_grad()
 
-        else:
+                output = self.model(data)
 
+                s_zt = output[1][1]
+                L_s = self.cross(s_zt, sensitive.argmax(dim=1))
+                loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
+
+                z_t = output[2][0]
+
+                for param in self.model.encoder.parameters():
+                    param.requires_grad=False
+
+                t_predictions = self.yale_tar_clf.forward(z_t)
+                t_pred = torch.argmax(torch.softmax(t_predictions, dim=0), dim=1)
+                loss_clf_1 = self.cross(t_predictions, target.argmax(dim=1))
+                #loss_clf_1.requires_grad = True
+                loss_clf_1.backward(retain_graph=True)
+
+                s_predictions = self.yale_sen_clf.forward(z_t)
+                s_pred = torch.argmax(torch.softmax(s_predictions, dim=0), dim=1)
+                loss_clf_2 = self.cross(s_predictions, sensitive.argmax(dim=1))
+                #loss_clf_2.requires_grad = True
+                loss_clf_2.backward()
+
+                self.optimizer_1.step()
+
+                for param in self.model.encoder.parameters():
+                    param.requires_grad=True
+                
+                #import pdb; pdb.set_trace()
+                self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
+                self.valid_metrics.update('accuracy', self.metric_ftns[0](t_pred, target.argmax(dim=1)))
+                self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_pred, sensitive.argmax(dim=1)))
+        else: #tabluar
             with torch.no_grad():
                 for batch_idx, (data, sensitive, target) in enumerate(self.valid_data_loader):
                     data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)

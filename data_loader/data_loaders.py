@@ -55,9 +55,9 @@ class YaleDataset(Dataset):
         
         self.targetClasses = len(list(set(targets)))
         self.illuminationsClasses = [i for i in range(len(list(set(illuminations))))]
-        # sensitive = LabelBinarizer().fit_transform([str(i) for i in illuminations])
-        # targets = LabelBinarizer().fit_transform(targets)
-        sensitive = LabelEncoder().fit_transform([str(i) for i in illuminations])
+        sensitive = LabelBinarizer().fit_transform([str(i) for i in illuminations])
+        targets = LabelBinarizer().fit_transform(targets)
+        #sensitive = LabelEncoder().fit_transform([str(i) for i in illuminations])
         return images, targets, sensitive, illuminations
 
     def __len__(self):
