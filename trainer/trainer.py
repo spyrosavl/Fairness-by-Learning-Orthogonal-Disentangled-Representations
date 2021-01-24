@@ -71,7 +71,7 @@ class Trainer(BaseTrainer):
                 s_zs = output[1][2]
                 
                 L_s = self.cross(s_zs, sensitive)
-               
+        
                 for param in self.model.encoder.resnet.parameters():
                     param.requires_grad=False
                 L_s.backward(retain_graph=True)
@@ -158,7 +158,10 @@ class Trainer(BaseTrainer):
 
                 output = self.model(data)
                 z_t = output[2][0]
-                
+
+                for param in self.model.encoder.parameters():
+                    param.requires_grad=False
+
                 t_predictions = self.tar_clf.forward(z_t)
                 t_pred = torch.argmax(torch.softmax(t_predictions, dim=0), dim=1)
                 loss_clf_1 = self.cross(t_predictions, target)
@@ -171,6 +174,9 @@ class Trainer(BaseTrainer):
                 loss_clf_2.backward()
                 self.optimizer_4.step()
                 
+                for param in self.model.encoder.parameters():
+                    param.requires_grad=True
+
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                 self.valid_metrics.update('accuracy', self.metric_ftns[0](t_pred, target))
                 self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_pred, sensitive))

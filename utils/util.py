@@ -104,8 +104,8 @@ class Criterion(nn.Module):
             m_t = MultivariateNormal(torch.tensor([0.,1.]), torch.eye(2))
             m_s = MultivariateNormal(torch.tensor([1.,0.]), torch.eye(2))
         
-        uniform = torch.rand(size=s_zs.size())
-        Loss_e = self.kld(torch.log_softmax(uniform, dim=1), torch.softmax(s_zs, dim=1))
+        uniform = torch.rand(size=s_zt.size())
+        Loss_e = self.kld(torch.log_softmax(uniform, dim=1), torch.softmax(s_zt, dim=1))
         #Loss_e = L_e(s_zs)
         #print(Loss_e)
         #TODO should the priors be the same for each loss computation?
