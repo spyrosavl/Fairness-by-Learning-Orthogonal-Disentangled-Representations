@@ -9,14 +9,14 @@
             "hidden_dim" : 100,
             "z_dim" : 100,
             "target_classes" : 38,
-            "sensitive_classes" : 64
+            "sensitive_classes" : 5
         }
     },
     "data_loader": {
         "type": "YaleDataLoader",
         "args":{
             "data_dir": "data/yale/",
-            "batch_size": 32,
+            "batch_size": 16,
             "shuffle": true,
             "validation_split": 0.1,
             "num_workers": 2

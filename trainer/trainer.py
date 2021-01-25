@@ -47,8 +47,8 @@ class Trainer(BaseTrainer):
         self.sensitive_clf = LogisticRegression()
         self.tar_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=2)
         self.sen_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=10)
-        self.yale_tar_clf = Cifar_Classifier(z_dim=100, hidden_dim=[100], out_dim=38)
-        self.yale_sen_clf = Cifar_Classifier(z_dim=100, hidden_dim=[100], out_dim=64)
+        self.yale_tar_clf = Yale_Classifier(z_dim=100, out_dim=38)
+        self.yale_sen_clf = Yale_Classifier(z_dim=100, out_dim=64)
 
         self.cross = nn.CrossEntropyLoss()
         self.bce = nn.BCEWithLogitsLoss()

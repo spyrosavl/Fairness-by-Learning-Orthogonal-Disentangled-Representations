@@ -354,12 +354,21 @@ class Cifar_Classifier(BaseModel):
         self.classifier = nn.ModuleList(self.layers)
 
     def forward(self, x):
-
         out = x
         for layers in self.classifier:
             out = layers(out)
         out = self.output(out)
         #out = torch.softmax(out, dim=1)
+        return out
+
+class Yale_Classifier(BaseModel):
+
+    def __init__(self, z_dim, out_dim):
+        super().__init__()
+        self.classifier = nn.Linear(z_dim, out_dim)
+
+    def forward(self, x):
+        out = self.classifier(x)
         return out
 
 class YaleModel(BaseModel):
