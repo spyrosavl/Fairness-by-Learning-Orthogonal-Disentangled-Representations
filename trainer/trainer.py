@@ -69,9 +69,9 @@ class Trainer(BaseTrainer):
                 self.optimizer_2.zero_grad()
                 output = self.model(data)
                 s_zs = output[1][2]
-                
+                z_t = output[2][0]
                 L_s = self.cross(s_zs, sensitive)
-        
+                
                 for param in self.model.encoder.resnet.parameters():
                     param.requires_grad=False
                 L_s.backward(retain_graph=True)
@@ -81,6 +81,7 @@ class Trainer(BaseTrainer):
                 loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
 
                 loss.backward()
+                
                 self.optimizer_1.step()
                 self.optimizer_2.step()
             
@@ -112,7 +113,7 @@ class Trainer(BaseTrainer):
                 for param in self.model.encoder.shared_model.parameters():
                     param.requires_grad=True
                 
-                loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
+                loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
                 loss.backward()
                 self.optimizer_1.step()
                 
@@ -163,13 +164,13 @@ class Trainer(BaseTrainer):
                     param.requires_grad=False
 
                 t_predictions = self.tar_clf.forward(z_t)
-                t_pred = torch.argmax(torch.softmax(t_predictions, dim=0), dim=1)
+                t_pred = torch.argmax(torch.softmax(t_predictions, dim=1), dim=1)
                 loss_clf_1 = self.cross(t_predictions, target)
                 loss_clf_1.backward(retain_graph=True)
                 self.optimizer_3.step()
 
                 s_predictions = self.sen_clf.forward(z_t)
-                s_pred = torch.argmax(torch.softmax(s_predictions, dim=0), dim=1)
+                s_pred = torch.argmax(torch.softmax(s_predictions, dim=1), dim=1)
                 loss_clf_2 = self.cross(s_predictions, sensitive)
                 loss_clf_2.backward()
                 self.optimizer_4.step()
