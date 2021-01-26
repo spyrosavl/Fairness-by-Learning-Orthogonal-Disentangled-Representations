@@ -5,7 +5,8 @@
     "arch": {
         "type": "CifarModel",
         "args": {
-            "input_dim" : 128,
+            "input_dim" : 1000,
+            "enc_hidden"   : 128,
             "hidden_dim" : [256, 128],
             "z_dim" : 128,
             "target_classes" : 2,
@@ -66,14 +67,14 @@
         }
     },
     "trainer": {
-        "epochs": 10,
+        "epochs": 20,
 
         "save_dir": "saved/",
         "save_period": 1,
         "verbosity": 2,
         
         "monitor": "min val_loss",
-        "early_stop": 10,
+        "early_stop": 0,
 
         "tensorboard": true,
 
