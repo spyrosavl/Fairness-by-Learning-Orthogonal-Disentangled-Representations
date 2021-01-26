@@ -50,14 +50,12 @@ def main(config):
     if config["arch"]["type"] in ["TabularModel", "YaleModel"]:
         trainable_params = filter(lambda p: p.requires_grad, model.parameters())
         optimizer = config.init_obj('optimizer', torch.optim, trainable_params)
-        lr_scheduler = config.init_obj('lr_scheduler', torch.optim.lr_scheduler, optimizer)
 
         trainer = Trainer(model, criterion, metrics, optimizer, optimizer_2=None, optimizer_3=None, optimizer_4=None,
                         config=config,
                         device=device,
                         data_loader=data_loader,
-                        valid_data_loader=valid_data_loader,
-                        lr_scheduler=lr_scheduler)
+                        valid_data_loader=valid_data_loader)
     else : 
         trainable_params_1 = filter(lambda p: p.requires_grad, model.encoder.parameters())
         optimizer_1 = config.init_obj('optimizer_1', torch.optim, trainable_params_1)

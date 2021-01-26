@@ -10,7 +10,6 @@ from torch.utils.data.sampler import SubsetRandomSampler
 import re
 from PIL import Image
 
-
 class CIFAR100DataLoader(BaseDataLoader):
     def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
         trsfm = transforms.Compose([
@@ -33,13 +32,10 @@ class CIFAR10DataLoader(BaseDataLoader):
 class YaleDataset(Dataset):
     def __init__(self, data_dir):
         self.data_dir = data_dir
-        self.targetClasses = None
-        self.illuminationsClasses = None #[ (A,E) for A in range(-130,135, 5) for E in range(-40,95,5)]
-        self.illuminationsClassesTraining = [ (0, 0), (-130, 20), (-110, -20), (130, 20), (110, -20) ]
-        self.images, self.targets, self.sensitive, self.illuminations = self.get_data(self.data_dir)
+        self.images, self.targets, self.sensitive = self.get_data(self.data_dir)
     
     def get_data(self, data_dir):
-        images=[];  targets=[]; sensitive=[]; illuminations=[]
+        images=[];  targets=[]; sensitive=[]
         img_name_pattern = re.compile("yaleB\d{2}_P00A(\+|-)\d*E(\+|-)\d*\.pgm$")
         for dir_index, directory in enumerate(os.listdir(data_dir)):
             if not os.path.isdir(os.path.join(data_dir, directory)):
@@ -50,15 +46,27 @@ class YaleDataset(Dataset):
                 images.append(os.path.join(data_dir, directory, image_name))
                 illumination_pattern = re.compile("yaleB\d{2}_P00A(-\d*|\+\d*)E(-\d*|\+\d*)\.pgm")
                 A, E = illumination_pattern.findall(image_name)[0]
-                illuminations.append((int(A),int(E))) #illumination
+                sensitive.append(self.get_sensitive_group_classes(int(A),int(E))) #illumination
                 targets.append(dir_index) #person id
-        
-        self.targetClasses = len(list(set(targets)))
-        self.illuminationsClasses = [i for i in range(len(list(set(illuminations))))]
-        # sensitive = LabelBinarizer().fit_transform([str(i) for i in illuminations])
-        # targets = LabelBinarizer().fit_transform(targets)
-        sensitive = LabelEncoder().fit_transform([str(i) for i in illuminations])
-        return images, targets, sensitive, illuminations
+
+        #for c in range(5):
+        #    print("Class %d, No of samples %d" % (c, len([i for i in sensitive if i == c])))
+
+        sensitive = LabelBinarizer().fit_transform(sensitive)
+        targets = LabelBinarizer().fit_transform(targets)
+        return images, targets, sensitive
+
+    def get_sensitive_group_classes(self, A, E):
+        if abs(A) <= 20 and abs(E) <=15: #consider those coordinates central
+            return 0
+        elif A <= 0 and E <= 0:
+            return 1
+        elif A <= 0 and E > 0:
+            return 2
+        elif A > 0 and E <= 0:
+            return 3
+        else:
+            return 4
 
     def __len__(self):
         return len(self.images)
@@ -80,9 +88,13 @@ class YaleDataLoader(BaseDataLoader):
     def _split_sampler(self, split):
         idx_full = np.arange(self.dataset.__len__())
         train_idx, valid_idx = [], []
+
+        is_in_training = {}
         for idx in idx_full:
-            if self.dataset.illuminations[idx] in self.dataset.illuminationsClassesTraining:
+            t, s = self.dataset.targets[idx].argmax().item(), self.dataset.sensitive[idx].argmax().item()
+            if not ((t, s) in is_in_training):
                 train_idx.append(idx)
+                is_in_training[(t, s)] = True
             else:
                 valid_idx.append(idx)
 

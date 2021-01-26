@@ -5,20 +5,19 @@
     "arch": {
         "type": "YaleModel",
         "args": {
-            "input_dim" : 2064384,
+            "input_dim" : 32256,
             "hidden_dim" : 100,
-            "z_dim" : 2,
+            "z_dim" : 100,
             "target_classes" : 38,
-            "sensitive_classes" : 64
+            "sensitive_classes" : 5
         }
     },
     "data_loader": {
         "type": "YaleDataLoader",
         "args":{
             "data_dir": "data/yale/",
-            "batch_size": 64,
+            "batch_size": 16,
             "shuffle": true,
-            "validation_split": 0.1,
             "num_workers": 2
         }
     },
@@ -30,36 +29,22 @@
             "amsgrad": true
         }
     },
-    "loss": "nll_loss",
+    "loss": "loss",
     "metrics": [
         "accuracy", "sens_accuracy"
     ],
-    "lr_scheduler": {
-        "type": "StepLR",
-        "args": {
-            "step_size": 50,
-            "gamma": 0.1
-        }
-    },
     "trainer": {
         "epochs": 100,
-
         "save_dir": "saved/",
         "save_period": 1,
         "verbosity": 2,
-        
         "monitor": "min val_loss",
         "early_stop": 0,
-
         "tensorboard": true,
-
         "lambda_e" : 1.0,
         "lambda_od" : 0.037,
         "gamma_e" : 2.0,
         "gamma_od" : 1.1,
         "step_size" : 64
- 
-
-
     }
 }
