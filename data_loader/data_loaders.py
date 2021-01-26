@@ -10,7 +10,6 @@ from torch.utils.data.sampler import SubsetRandomSampler
 import re
 from PIL import Image
 
-
 class CIFAR100DataLoader(BaseDataLoader):
     def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
         trsfm = transforms.Compose([
@@ -33,7 +32,6 @@ class CIFAR10DataLoader(BaseDataLoader):
 class YaleDataset(Dataset):
     def __init__(self, data_dir):
         self.data_dir = data_dir
-        #self.illuminationsClassesTraining = [ (0, 0), (-130, 20), (-110, -20), (130, 20), (110, -20) ]
         self.images, self.targets, self.sensitive = self.get_data(self.data_dir)
     
     def get_data(self, data_dir):

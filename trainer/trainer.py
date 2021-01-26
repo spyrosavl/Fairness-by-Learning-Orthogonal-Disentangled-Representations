@@ -62,9 +62,10 @@ class Trainer(BaseTrainer):
         """
         self.model.train()
         self.train_metrics.reset()
-        if self.dataset_name == 'CIFAR10DataLoader':
-            for batch_idx, (data, sensitive) in enumerate(self.data_loader):
-                data, sensitive = data.to(self.device), sensitive.to(self.device)
+
+        for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
+            data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
+            if self.dataset_name == 'CIFAR10DataLoader':
                 target = torch.tensor([i in self.living_classes for i in sensitive]).long()
                 
                 self.optimizer_1.zero_grad()
@@ -86,23 +87,8 @@ class Trainer(BaseTrainer):
                 
                 self.optimizer_1.step()
                 self.optimizer_2.step()
-            
-                self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
-                self.train_metrics.update('loss', loss.item()+L_s)
-
-                if batch_idx % self.log_step == 0:
-                    self.logger.debug('Train Epoch: {} {} Loss: {:.6f}'.format(
-                        epoch,
-                        self._progress(batch_idx),
-                        loss.item()+L_s))
-
-                if batch_idx == self.len_epoch:
-                    break
-        elif self.dataset_name == 'YaleDataLoader':
-            for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
-                data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
                 
-                #import pdb; pdb.set_trace()
+            elif self.dataset_name == 'YaleDataLoader':                
                 self.optimizer_1.zero_grad()
                 output = self.model(data)
 
@@ -119,23 +105,8 @@ class Trainer(BaseTrainer):
                 loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
                 loss.backward()
                 self.optimizer_1.step()
-                
-                self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
-                self.train_metrics.update('loss', loss.item()+L_s)
-
-                if batch_idx % self.log_step == 0:
-                    self.logger.debug('Train Epoch: {} {} Loss: {:.6f}'.format(
-                        epoch,
-                        self._progress(batch_idx),
-                        loss.item()))
-
-                if batch_idx == self.len_epoch:
-                    break
-        elif self.dataset_name in ["AdultDataLoader", "GermanDataLoader"]:
-            for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
-                data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
-                
-                #import pdb; pdb.set_trace()
+                    
+            elif self.dataset_name in ["AdultDataLoader", "GermanDataLoader"]:                
                 self.optimizer_1.zero_grad()
                 output = self.model(data)
 
@@ -151,18 +122,16 @@ class Trainer(BaseTrainer):
                 loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
                 loss.backward()
                 self.optimizer_1.step()
-                
-                self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
-                self.train_metrics.update('loss', loss.item()+L_s)
+        
+            self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
+            self.train_metrics.update('loss', loss.item()+L_s)
 
-                if batch_idx % self.log_step == 0:
-                    self.logger.debug('Train Epoch: {} {} Loss: {:.6f}'.format(
-                        epoch,
-                        self._progress(batch_idx),
-                        loss.item()))
-
-                if batch_idx == self.len_epoch:
-                    break
+            if batch_idx % self.log_step == 0:
+                self.logger.debug('Train Epoch: {} {}'.format(
+                    epoch,
+                    self._progress(batch_idx)))
+            if batch_idx == self.len_epoch:
+                break
 
         log = self.train_metrics.result()
 
@@ -215,7 +184,7 @@ class Trainer(BaseTrainer):
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                 self.valid_metrics.update('accuracy', self.metric_ftns[0](t_pred, target))
-                self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_pred, sensitive))
+                self.valid_metrics.update('sens_accuracy', self.metric_ftns[0](s_pred, sensitive))
         elif self.dataset_name == 'YaleDataLoader':
             for batch_idx, (data, sensitive, target) in enumerate(self.valid_data_loader):
                 data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
@@ -236,13 +205,11 @@ class Trainer(BaseTrainer):
                 t_predictions = self.yale_tar_clf.forward(z_t)
                 t_pred = torch.argmax(torch.softmax(t_predictions, dim=0), dim=1)
                 loss_clf_1 = self.cross(t_predictions, target.argmax(dim=1))
-                #loss_clf_1.requires_grad = True
                 loss_clf_1.backward(retain_graph=True)
 
                 s_predictions = self.yale_sen_clf.forward(z_t)
                 s_pred = torch.argmax(torch.softmax(s_predictions, dim=0), dim=1)
                 loss_clf_2 = self.cross(s_predictions, sensitive.argmax(dim=1))
-                #loss_clf_2.requires_grad = True
                 loss_clf_2.backward()
 
                 self.optimizer_1.step()
@@ -250,10 +217,9 @@ class Trainer(BaseTrainer):
                 for param in self.model.encoder.parameters():
                     param.requires_grad=True
                 
-                #import pdb; pdb.set_trace()
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                 self.valid_metrics.update('accuracy', self.metric_ftns[0](t_pred, target.argmax(dim=1)))
-                self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_pred, sensitive.argmax(dim=1)))
+                self.valid_metrics.update('sens_accuracy', self.metric_ftns[0](s_pred, sensitive.argmax(dim=1)))
         else: #tabluar
             with torch.no_grad():
                 for batch_idx, (data, sensitive, target) in enumerate(self.valid_data_loader):
@@ -276,7 +242,7 @@ class Trainer(BaseTrainer):
                     self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                     self.valid_metrics.update('loss', loss.item() + L_s)
                     self.valid_metrics.update('accuracy', self.metric_ftns[0](t_predictions, target))
-                    self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_predictions, s))
+                    self.valid_metrics.update('sens_accuracy', self.metric_ftns[0](s_predictions, s))
 
         # add histogram of model parameters to the tensorboard
         # for name, p in self.model.named_parameters():
