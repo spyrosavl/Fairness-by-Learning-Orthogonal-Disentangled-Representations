@@ -173,8 +173,11 @@ class Trainer(BaseTrainer):
                 t_predictions = self.tar_clf.forward(z_t)
                 t_pred = torch.argmax(torch.softmax(t_predictions, dim=1), dim=1)
                 loss_clf_1 = self.cross(t_predictions, target)
-                loss_clf_1.backward()
+                loss_clf_1.backward(retain_graph=True)
                 self.optimizer_3.step()
+                
+                for params_3 in self.tar_clf.parameters():
+                    params_3.requires_grad = False
 
                 s_predictions = self.sen_clf.forward(z_t)
                 s_pred = torch.argmax(torch.softmax(s_predictions, dim=1), dim=1)
@@ -187,7 +190,9 @@ class Trainer(BaseTrainer):
                 
                 for param_2 in self.model.decoder.parameters():
                     param_2.requires_grad=True
-
+                
+                for params_3 in self.tar_clf.parameters():
+                    params_3.requires_grad = True
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                 self.valid_metrics.update('loss', loss.item() + L_s)

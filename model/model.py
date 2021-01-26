@@ -213,7 +213,7 @@ resnet_blocks_by_name = {
 
 class ResNet(BaseModel):
 
-    def __init__(self, num_classes=10, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="ResNetBlock", **kwargs):
+    def __init__(self, num_classes=10, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="PreResNetBlock", **kwargs):
        
         super().__init__()
 
