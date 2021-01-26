@@ -230,7 +230,6 @@ class Trainer(BaseTrainer):
                     L_s = self.bce(s_zt, sensitive.float())
                     loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
 
-                    #import pdb; pdb.set_trace()
                     z_t = output[2][0]
 
                     t_clf = self.target_clf.fit(z_t, target)
