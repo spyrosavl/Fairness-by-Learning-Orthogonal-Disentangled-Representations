@@ -156,17 +156,24 @@ class Trainer(BaseTrainer):
                 
                 self.optimizer_3.zero_grad()
                 self.optimizer_4.zero_grad()
-
+                
                 output = self.model(data)
                 z_t = output[2][0]
+                
+                s_zt = output[1][1]
+                L_s = self.cross(s_zt, sensitive)
+                loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
 
-                for param in self.model.encoder.parameters():
-                    param.requires_grad=False
+                for param_1 in self.model.encoder.parameters():
+                    param_1.requires_grad=False
+
+                for param_2 in self.model.decoder.parameters():
+                    param_2.requires_grad=False
 
                 t_predictions = self.tar_clf.forward(z_t)
                 t_pred = torch.argmax(torch.softmax(t_predictions, dim=1), dim=1)
                 loss_clf_1 = self.cross(t_predictions, target)
-                loss_clf_1.backward(retain_graph=True)
+                loss_clf_1.backward()
                 self.optimizer_3.step()
 
                 s_predictions = self.sen_clf.forward(z_t)
@@ -175,10 +182,15 @@ class Trainer(BaseTrainer):
                 loss_clf_2.backward()
                 self.optimizer_4.step()
                 
-                for param in self.model.encoder.parameters():
-                    param.requires_grad=True
+                for param_1 in self.model.encoder.parameters():
+                    param_1.requires_grad=True
+                
+                for param_2 in self.model.decoder.parameters():
+                    param_2.requires_grad=True
+
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
+                self.valid_metrics.update('loss', loss.item() + L_s)
                 self.valid_metrics.update('accuracy', self.metric_ftns[0](t_pred, target))
                 self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_pred, sensitive))
 
