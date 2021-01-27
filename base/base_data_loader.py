@@ -16,6 +16,10 @@ class BaseDataLoader(DataLoader):
         self.n_samples = len(dataset)
 
         self.sampler, self.valid_sampler = self._split_sampler(self.validation_split)
+
+        print(f"Training set samples: {self.sampler.__len__()}")
+        print(f"Validation set samples: {self.valid_sampler.__len__()}")
+
         self.init_kwargs = {
             'dataset': dataset,
             'batch_size': batch_size,
@@ -30,7 +34,6 @@ class BaseDataLoader(DataLoader):
             return None, None
 
         idx_full = np.arange(self.n_samples)
-
         np.random.seed(0)
         
         if self.validation_appended_len is None:

@@ -98,8 +98,13 @@ class Criterion(nn.Module):
             mean_1, mean_2 = mean_tensors(np.zeros(128), 50), mean_tensors(np.zeros(128), 100)
             m_t = MultivariateNormal(mean_1, torch.eye(128))
             m_s = MultivariateNormal(mean_2, torch.eye(128))
-            
-        else:
+        elif dataset_name == 'YaleDataLoader':
+            target_arg_max = target.squeeze().argmax(dim=1)
+            L_t = self.cross(y_zt, target_arg_max)
+            mean_1, mean_2 = mean_tensors(np.zeros(100), 50), mean_tensors(np.zeros(100), 90)
+            m_t = MultivariateNormal(mean_1, torch.eye(100))
+            m_s = MultivariateNormal(mean_2, torch.eye(100)) 
+        else: #tabular
             L_t = self.bce(y_zt, target[:,None].float())
             m_t = MultivariateNormal(torch.tensor([0.,1.]), torch.eye(2))
             m_s = MultivariateNormal(torch.tensor([1.,0.]), torch.eye(2))

@@ -5,9 +5,10 @@ from torchvision import datasets, transforms
 import torchtext
 from torch.utils.data import DataLoader, Dataset
 from base import BaseDataLoader
-from sklearn.preprocessing import MultiLabelBinarizer, normalize
+from sklearn.preprocessing import MultiLabelBinarizer, normalize, LabelBinarizer, LabelEncoder
 from torch.utils.data.sampler import SubsetRandomSampler
-
+import re
+from PIL import Image
 
 class CIFAR100DataLoader(BaseDataLoader):
     def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
@@ -28,20 +29,82 @@ class CIFAR10DataLoader(BaseDataLoader):
         self.dataset = datasets.CIFAR10(self.data_dir, train=training, download=True, transform=trsfm)
         super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
 
-class MnistDataLoader(BaseDataLoader):
-    
-    ### MNIST data loading demo using BaseDataLoader
-    
-    def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
-        trsfm = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
-        ])
+class YaleDataset(Dataset):
+    def __init__(self, data_dir):
         self.data_dir = data_dir
-        self.dataset = datasets.MNIST(self.data_dir, train=training, download=True, transform=trsfm)
-        print(self.dataset)
+        self.images, self.targets, self.sensitive = self.get_data(self.data_dir)
+    
+    def get_data(self, data_dir):
+        images=[];  targets=[]; sensitive=[]
+        img_name_pattern = re.compile("yaleB\d{2}_P00A(\+|-)\d*E(\+|-)\d*\.pgm$")
+        for dir_index, directory in enumerate(os.listdir(data_dir)):
+            if not os.path.isdir(os.path.join(data_dir, directory)):
+                continue
+            for image_name in os.listdir(os.path.join(data_dir, directory)):
+                if not img_name_pattern.match(image_name):
+                    continue
+                images.append(os.path.join(data_dir, directory, image_name))
+                illumination_pattern = re.compile("yaleB\d{2}_P00A(-\d*|\+\d*)E(-\d*|\+\d*)\.pgm")
+                A, E = illumination_pattern.findall(image_name)[0]
+                sensitive.append(self.get_sensitive_group_classes(int(A),int(E))) #illumination
+                targets.append(dir_index) #person id
+
+        #for c in range(5):
+        #    print("Class %d, No of samples %d" % (c, len([i for i in sensitive if i == c])))
+
+        sensitive = LabelBinarizer().fit_transform(sensitive)
+        targets = LabelBinarizer().fit_transform(targets)
+        return images, targets, sensitive
+
+    def get_sensitive_group_classes(self, A, E):
+        if abs(A) <= 20 and abs(E) <=15: #consider those coordinates central
+            return 0
+        elif A <= 0 and E <= 0:
+            return 1
+        elif A <= 0 and E > 0:
+            return 2
+        elif A > 0 and E <= 0:
+            return 3
+        else:
+            return 4
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        trsfm = transforms.Compose([
+            transforms.ToTensor()
+        ])
+        data = Image.open(self.images[idx])
+        data = trsfm(data)
+        return data, self.sensitive[idx], self.targets[idx]
+
+class YaleDataLoader(BaseDataLoader):    
+    def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
+        self.data_dir = data_dir
+        self.dataset = YaleDataset(self.data_dir)
         super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
 
+    def _split_sampler(self, split):
+        idx_full = np.arange(self.dataset.__len__())
+        train_idx, valid_idx = [], []
+
+        is_in_training = {}
+        for idx in idx_full:
+            t, s = self.dataset.targets[idx].argmax().item(), self.dataset.sensitive[idx].argmax().item()
+            if not ((t, s) in is_in_training):
+                train_idx.append(idx)
+                is_in_training[(t, s)] = True
+            else:
+                valid_idx.append(idx)
+
+        train_sampler = SubsetRandomSampler(train_idx)
+        valid_sampler = SubsetRandomSampler(valid_idx)
+        # turn off shuffle option which is mutually exclusive with sampler
+        self.shuffle = False
+        self.n_samples = len(train_idx)
+
+        return train_sampler, valid_sampler
 
 class collator(object):
     def __init__(self, device='cpu'):
@@ -217,4 +280,3 @@ if __name__ == '__main__':
     german_dataloader = DataLoader(german_dataset, batch_size=16)
     cifar10 = CIFAR10DataLoader('./', batch_size=64)
     cifar100 = CIFAR100DataLoader('./', batch_size=16)
-

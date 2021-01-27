@@ -3,9 +3,6 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 
-def nll_loss(output, target):
-    return F.nll_loss(output, target)
-
 def KLD(enc_mean, enc_log_std, prior_mean, prior_cov):
 
     prior_log_det_cov = torch.log(torch.det(prior_cov))
