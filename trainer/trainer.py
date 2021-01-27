@@ -158,7 +158,12 @@ class Trainer(BaseTrainer):
                 self.optimizer_4.zero_grad()
 
                 output = self.model(data)
+ 
+                s_zs = output[1][2]
                 z_t = output[2][0]
+                L_s = self.cross(s_zs, sensitive)
+                loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
+
 
                 for param in self.model.encoder.parameters():
                     param.requires_grad=False
@@ -166,7 +171,7 @@ class Trainer(BaseTrainer):
                 t_predictions = self.tar_clf.forward(z_t)
                 t_pred = torch.argmax(torch.softmax(t_predictions, dim=1), dim=1)
                 loss_clf_1 = self.cross(t_predictions, target)
-                loss_clf_1.backward(retain_graph=True)
+                loss_clf_1.backward(retain_graph=True)  #why retain graph?
                 self.optimizer_3.step()
 
                 s_predictions = self.sen_clf.forward(z_t)
@@ -179,6 +184,7 @@ class Trainer(BaseTrainer):
                     param.requires_grad=True
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
+                self.valid_metrics.update('loss', loss.item()+L_s)
                 self.valid_metrics.update('accuracy', self.metric_ftns[0](t_pred, target))
                 self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_pred, sensitive))
 

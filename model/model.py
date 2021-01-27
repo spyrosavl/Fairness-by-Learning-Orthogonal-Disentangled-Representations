@@ -196,8 +196,8 @@ class PreActResNetBlock(BaseModel):
         
         # 1x1 convolution needs to apply non-linearity as well as not done on skip connection
         self.downsample = nn.Sequential(
-            nn.BatchNorm2d(c_in),
-            act_fn(),
+     #       nn.BatchNorm2d(c_in),
+     #       act_fn(),
             nn.Conv2d(c_in, c_out, kernel_size=1, stride=2, bias=False)) if subsample else None
 
     def forward(self, x):
@@ -213,7 +213,7 @@ resnet_blocks_by_name = {
 
 class ResNet(BaseModel):
 
-    def __init__(self, num_classes=1000, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="ResNetBlock", **kwargs):
+    def __init__(self, num_classes=128, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="ResNetBlock", **kwargs):
        
         super().__init__()
 
@@ -304,20 +304,29 @@ class CIFAR_Encoder(BaseModel):
         #Activation function
         self.act_f = nn.ReLU() 
 
-        self.resnet = resnet18(progress=True)
+#        self.resnet = resnet18(progress=True)
+        self.resnet = ResNet()
+
 
     def forward(self, x):
         
-        out = self.resnet(x)
-        
-        out_1 = self.encoder_1(out)
-        out_2 = self.encoder_2(out)
+       # out = self.resnet(x)
+        out_1, out_2 = self.resnet.forward(x)
         
         mean_t = self.mean_encoder_1(self.act_f(out_1))
         log_std_t = self.log_std_1(self.act_f(out_1))
         
         mean_s = self.mean_encoder_2(self.act_f(out_2))
         log_std_s = self.log_std_2(self.act_f(out_2))
+
+#        out_1 = self.encoder_1(out)
+#        out_2 = self.encoder_2(out)
+        
+#        mean_t = self.mean_encoder_1(self.act_f(out_1))
+#        log_std_t = self.log_std_1(self.act_f(out_1))
+        
+#        mean_s = self.mean_encoder_2(self.act_f(out_2))
+#        log_std_s = self.log_std_2(self.act_f(out_2))
         
         return mean_t, mean_s, log_std_t, log_std_s
 
