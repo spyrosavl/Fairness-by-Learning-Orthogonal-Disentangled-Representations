@@ -10,15 +10,17 @@ def reparameterization(mean_t, mean_s, log_std_t, log_std_s):
     z2 = mean_s + torch.exp(log_std_s/2) @ torch.normal(torch.from_numpy(np.array([1.,0.]).T).float(), torch.eye(2))
     return z1, z2
 
-def mean_tensors(mean, i):
-    mean[i] = 1
-    mean_tens = torch.from_numpy(mean).float()
-    return mean_tens
+def mean_tensors(mean_1, mean_2, i):
+    mean_1[i] = 1
+    mean_2[i] = 0
+    mean_t = torch.from_numpy(mean_1).float()
+    mean_s = torch.from_numpy(mean_2).float()
+    return mean_t, mean_s
     
 def reparameterization_cifar(mean_t, mean_s, log_std_t, log_std_s):
 
-    mean_1 = mean_tensors(np.zeros(128), 13)
-    mean_2 = mean_tensors(np.zeros(128), 100)
+    mean_1, mean_2 = mean_tensors(np.zeros(128), np.ones(128), 13)
+    
     z1 = mean_t + torch.exp(log_std_t/2) @ torch.normal(mean_1, torch.eye(128))
     z2 = mean_s + torch.exp(log_std_s/2) @ torch.normal(mean_2, torch.eye(128))
 
@@ -26,8 +28,8 @@ def reparameterization_cifar(mean_t, mean_s, log_std_t, log_std_s):
 
 def reparameterization_yale(mean_t, mean_s, log_std_t, log_std_s):
 
-    mean_1 = mean_tensors(np.zeros(100), 13)
-    mean_2 = mean_tensors(np.zeros(100), 50)
+    mean_1, mean_2 = mean_tensors(np.zeros(100), np.ones(100), 13)
+
     z1 = mean_t + torch.exp(log_std_t/2) @ torch.normal(mean_1, torch.eye(100))
     z2 = mean_s + torch.exp(log_std_s/2) @ torch.normal(mean_2, torch.eye(100))
 
@@ -163,16 +165,14 @@ class ResNetBlock(BaseModel):
             
         # Network representing F
         self.net = nn.Sequential(
-            nn.Conv2d(c_in, c_out, kernel_size=3, padding=1, stride=1 if not subsample else 2, bias=False), # No bias needed as the Batch Norm handles it
+            nn.Conv2d(c_in, c_out, kernel_size=3, padding=1, stride=1 if not subsample else 2), # No bias needed as the Batch Norm handles it
             nn.BatchNorm2d(c_out),
             act_fn(inplace=True),
-            nn.Conv2d(c_out, c_out, kernel_size=3, padding=1, bias=False),
+            nn.Conv2d(c_out, c_out, kernel_size=3, padding=1),
             nn.BatchNorm2d(c_out))
         
         # 1x1 convolution with stride 2 means we take the upper left value, and transform it to new output size
-        self.downsample = nn.Sequential(
-            nn.Conv2d(c_in, c_out, kernel_size=1, stride=2, bias=False),
-            nn.BatchNorm2d(c_out)) if subsample else None
+        self.downsample = nn.Conv2d(c_in, c_out, kernel_size=1, stride=2) if subsample else None
         self.act_fn = act_fn(inplace=True)
  
     def forward(self, x):
@@ -220,7 +220,7 @@ resnet_blocks_by_name = {
 
 class ResNet(BaseModel):
 
-    def __init__(self, num_classes=10, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="PreResNetBlock", **kwargs):
+    def __init__(self, num_classes=128, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="ResNetBlock", **kwargs):
        
         super().__init__()
 
@@ -244,7 +244,7 @@ class ResNet(BaseModel):
                 nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
         else:
             self.input_net = nn.Sequential(
-                nn.Conv2d(3, c_hidden[0], kernel_size=7, stride=2, padding=3, bias=False),
+                nn.Conv2d(3, c_hidden[0], kernel_size=7, stride=2, padding=3),
                 nn.BatchNorm2d(c_hidden[0]),
                 self.hparams.act_fn(inplace=True),
                 nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
@@ -277,7 +277,7 @@ class ResNet(BaseModel):
         
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity=self.hparams.act_fn_name)
+                nn.init.xavier_normal_(m.weight)
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
@@ -311,21 +311,22 @@ class CIFAR_Encoder(BaseModel):
         #Activation function
         self.act_f = nn.ReLU()
 
-        self.resnet = resnet18(pretrained=True)
+        #self.resnet = resnet18(pretrained=True)
         
         #self.num_filters = self.resnet.fc.in_features
 
         #self.resnet.fc = nn.Linear(self.num_filters, 10)
-        
+        self.resnet = ResNet()
+
     def forward(self, x):
         
-        out = self.resnet(x)
+        out_1, out_2 = self.resnet(x)
         
-        mean_t = self.mean_encoder_1(self.act_f(out))
-        log_std_t = self.log_std_1(self.act_f(out))
+        mean_t = self.mean_encoder_1(self.act_f(out_1))
+        log_std_t = self.log_std_1(self.act_f(out_1))
         
-        mean_s = self.mean_encoder_2(self.act_f(out))
-        log_std_s = self.log_std_2(self.act_f(out))
+        mean_s = self.mean_encoder_2(self.act_f(out_2))
+        log_std_s = self.log_std_2(self.act_f(out_2))
         
         return mean_t, mean_s, log_std_t, log_std_s
 

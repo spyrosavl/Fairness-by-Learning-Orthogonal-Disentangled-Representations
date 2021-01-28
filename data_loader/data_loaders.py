@@ -57,16 +57,24 @@ class YaleDataset(Dataset):
         return images, targets, sensitive
 
     def get_sensitive_group_classes(self, A, E):
-        if abs(A) <= 20 and abs(E) <=15: #consider those coordinates central
+        if abs(A) == 0 and abs(E) == 0: #consider those coordinates central
             return 0
-        elif A <= 0 and E <= 0:
-            return 1
-        elif A <= 0 and E > 0:
+        elif A == 0 and E > 0:
+            return 0
+        elif A == 0 and E < 0:
+            return 0
+        elif A > 0 and E == 0:
+            return 1 
+        elif A < 0 and E == 0:
             return 2
-        elif A > 0 and E <= 0:
+        elif A > 0 and E < 0:
             return 3
-        else:
+        elif A > 0 and E > 0:
+            return 1
+        elif A < 0 and E < 0:
             return 4
+        else:
+            return 2
 
     def __len__(self):
         return len(self.images)
@@ -280,3 +288,4 @@ if __name__ == '__main__':
     german_dataloader = DataLoader(german_dataset, batch_size=16)
     cifar10 = CIFAR10DataLoader('./', batch_size=64)
     cifar100 = CIFAR100DataLoader('./', batch_size=16)
+    
