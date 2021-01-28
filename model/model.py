@@ -156,16 +156,17 @@ class ResNetBlock(BaseModel):
             
         # Network representing F
         self.net = nn.Sequential(
-            nn.Conv2d(c_in, c_out, kernel_size=3, padding=1, stride=1 if not subsample else 2, bias=False), # No bias needed as the Batch Norm handles it
+            nn.Conv2d(c_in, c_out, kernel_size=3, padding=1, stride=1 if not subsample else 2), # No bias needed as the Batch Norm handles it
             nn.BatchNorm2d(c_out),
             act_fn(inplace=True),
-            nn.Conv2d(c_out, c_out, kernel_size=3, padding=1, bias=False),
+            nn.Conv2d(c_out, c_out, kernel_size=3, padding=1),
             nn.BatchNorm2d(c_out))
         
         # 1x1 convolution with stride 2 means we take the upper left value, and transform it to new output size
-        self.downsample = nn.Sequential(
-            nn.Conv2d(c_in, c_out, kernel_size=1, stride=2, bias=False),
-            nn.BatchNorm2d(c_out)) if subsample else None
+#        self.downsample = nn.Sequential(
+#            nn.Conv2d(c_in, c_out, kernel_size=1, stride=2, bias=False),
+#            nn.BatchNorm2d(c_out)) if subsample else None
+        self.downsample = nn.Conv2d(c_in, c_out, kernel_size=1, stride=2) if subsample else None
         self.act_fn = act_fn(inplace=True)
  
     def forward(self, x):
@@ -196,9 +197,9 @@ class PreActResNetBlock(BaseModel):
         
         # 1x1 convolution needs to apply non-linearity as well as not done on skip connection
         self.downsample = nn.Sequential(
-     #       nn.BatchNorm2d(c_in),
-     #       act_fn(),
-            nn.Conv2d(c_in, c_out, kernel_size=1, stride=2, bias=False)) if subsample else None
+            nn.BatchNorm2d(c_in),
+            act_fn(),
+            nn.Conv2d(c_in, c_out, kernel_size=1, stride=2)) if subsample else None
 
     def forward(self, x):
         z = self.net(x)
@@ -213,6 +214,7 @@ resnet_blocks_by_name = {
 
 class ResNet(BaseModel):
 
+    #def __init__(self, num_classes=10, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="PreResNetBlock", **kwargs):
     def __init__(self, num_classes=128, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="ResNetBlock", **kwargs):
        
         super().__init__()
@@ -237,7 +239,7 @@ class ResNet(BaseModel):
                 nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
         else:
             self.input_net = nn.Sequential(
-                nn.Conv2d(3, c_hidden[0], kernel_size=7, stride=2, padding=3, bias=False),
+                nn.Conv2d(3, c_hidden[0], kernel_size=7, stride=2, padding=3),
                 nn.BatchNorm2d(c_hidden[0]),
                 self.hparams.act_fn(inplace=True),
                 nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
@@ -284,33 +286,33 @@ class ResNet(BaseModel):
 
 class CIFAR_Encoder(BaseModel):
 
-    def __init__(self, input_dim, enc_hidden, z_dim):
+    def __init__(self, input_dim, z_dim):
 
         super(CIFAR_Encoder, self).__init__()
         
         self.z_dim = z_dim
         
-        #Resnet to encoders layers
-        self.encoder_1 = nn.Linear(input_dim, enc_hidden)
-        self.encoder_2 = nn.Linear(input_dim, enc_hidden)
+        #ResNet to encoders
+        #self.fc1 = nn.Linear(input_dim, enc_hidden)
+        #self.fc2 = nn.Linear(input_dim, enc_hidden)
 
         #Output layers for each encoder
-        self.mean_encoder_1 = nn.Linear(enc_hidden, z_dim)
-        self.log_std_1      = nn.Linear(enc_hidden, z_dim)
+        self.mean_encoder_1 = nn.Linear(input_dim, z_dim)
+        self.log_std_1      = nn.Linear(input_dim, z_dim)
 
-        self.mean_encoder_2 = nn.Linear(enc_hidden, z_dim)
-        self.log_std_2      = nn.Linear(enc_hidden, z_dim)
+        self.mean_encoder_2 = nn.Linear(input_dim, z_dim)
+        self.log_std_2      = nn.Linear(input_dim, z_dim)
 
         #Activation function
-        self.act_f = nn.ReLU() 
-
-#        self.resnet = resnet18(progress=True)
+        self.act_f = nn.ReLU()
         self.resnet = ResNet()
 
-
+        #self.resnet = resnet18(pretrained=True)
+        #self.num_filters = self.resnet.fc.in_features
+        #self.resnet.fc = nn.Linear(self.num_filters, 10)
+        
     def forward(self, x):
         
-       # out = self.resnet(x)
         out_1, out_2 = self.resnet.forward(x)
         
         mean_t = self.mean_encoder_1(self.act_f(out_1))
@@ -319,23 +321,21 @@ class CIFAR_Encoder(BaseModel):
         mean_s = self.mean_encoder_2(self.act_f(out_2))
         log_std_s = self.log_std_2(self.act_f(out_2))
 
-#        out_1 = self.encoder_1(out)
-#        out_2 = self.encoder_2(out)
-        
-#        mean_t = self.mean_encoder_1(self.act_f(out_1))
-#        log_std_t = self.log_std_1(self.act_f(out_1))
-        
-#        mean_s = self.mean_encoder_2(self.act_f(out_2))
-#        log_std_s = self.log_std_2(self.act_f(out_2))
+
+        #out = self.resnet(x)
+        #mean_t = self.mean_encoder_1(self.act_f(out))
+        #log_std_t = self.log_std_1(self.act_f(out))
+        #mean_s = self.mean_encoder_2(self.act_f(out))
+        #log_std_s = self.log_std_2(self.act_f(out))
         
         return mean_t, mean_s, log_std_t, log_std_s
 
 class CifarModel(BaseModel):
 
-    def __init__(self, input_dim, enc_hidden, hidden_dim, z_dim, target_classes, sensitive_classes):
+    def __init__(self, input_dim, hidden_dim, z_dim, target_classes, sensitive_classes):
         super().__init__()
 
-        self.encoder = CIFAR_Encoder(input_dim, enc_hidden, z_dim)
+        self.encoder = CIFAR_Encoder(input_dim, z_dim)
         self.decoder = Tabular_ModelDecoder(z_dim, hidden_dim, target_classes, sensitive_classes)
 
     def forward(self, x):

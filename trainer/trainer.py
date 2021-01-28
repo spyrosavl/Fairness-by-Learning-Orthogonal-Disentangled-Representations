@@ -149,6 +149,8 @@ class Trainer(BaseTrainer):
         self.model.eval()
         self.valid_metrics.reset()
         #with torch.no_grad():
+#        self.tar_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=2)
+#        self.sen_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=10)
         if self.dataset_name == 'CIFAR10DataLoader':
             for batch_idx, (data, sensitive) in enumerate(self.valid_data_loader):
                 data, sensitive = data.to(self.device), sensitive.to(self.device)
@@ -156,7 +158,7 @@ class Trainer(BaseTrainer):
                 
                 self.optimizer_3.zero_grad()
                 self.optimizer_4.zero_grad()
-
+                
                 output = self.model(data)
  
                 s_zs = output[1][2]
@@ -164,24 +166,35 @@ class Trainer(BaseTrainer):
                 L_s = self.cross(s_zs, sensitive)
                 loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
 
+                for param_1 in self.model.encoder.parameters():
+                    param_1.requires_grad=False
 
-                for param in self.model.encoder.parameters():
-                    param.requires_grad=False
+                for param_2 in self.model.decoder.parameters():
+                    param_2.requires_grad=False
 
                 t_predictions = self.tar_clf.forward(z_t)
-                t_pred = torch.argmax(torch.softmax(t_predictions, dim=1), dim=1)
+                t_pred = torch.argmax(torch.softmax(t_predictions, dim=0), dim=1)
                 loss_clf_1 = self.cross(t_predictions, target)
                 loss_clf_1.backward(retain_graph=True)  #why retain graph?
                 self.optimizer_3.step()
+                
+                for params_3 in self.tar_clf.parameters():
+                    params_3.requires_grad = False
 
                 s_predictions = self.sen_clf.forward(z_t)
-                s_pred = torch.argmax(torch.softmax(s_predictions, dim=1), dim=1)
+                s_pred = torch.argmax(torch.softmax(s_predictions, dim=0), dim=1)
                 loss_clf_2 = self.cross(s_predictions, sensitive)
                 loss_clf_2.backward()
                 self.optimizer_4.step()
                 
-                for param in self.model.encoder.parameters():
-                    param.requires_grad=True
+                for param_1 in self.model.encoder.parameters():
+                    param_1.requires_grad=True
+                
+                for param_2 in self.model.decoder.parameters():
+                    param_2.requires_grad=True
+                
+                for params_3 in self.tar_clf.parameters():
+                    params_3.requires_grad = True
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                 self.valid_metrics.update('loss', loss.item()+L_s)
