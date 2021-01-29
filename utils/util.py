@@ -93,7 +93,7 @@ class Criterion(nn.Module):
         y_zt, s_zt, s_zs = inputs[1]
         z1, z2 = inputs[2]
 
-        if dataset_name == 'CIFAR10DataLoader':
+        if dataset_name in ['CIFAR10DataLoader', 'CIFAR100DataLoader']:
             L_t = self.cross(y_zt, target)
             mean_1, mean_2 = mean_tensors(np.zeros(128), np.ones(128), 13)
             m_t = MultivariateNormal(mean_1, torch.eye(128))
