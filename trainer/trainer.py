@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torchvision.utils import make_grid
 from base import BaseTrainer
-from utils import inf_loop, MetricTracker, Criterion
+from utils import inf_loop, MetricTracker
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from model.model import *
 from model.loss import *
@@ -15,9 +15,9 @@ class Trainer(BaseTrainer):
     """
     Trainer class
     """
-    def __init__(self, model, criterion, metric_ftns, optimizer_1, optimizer_2 , optimizer_3, optimizer_4, config, device,
+    def __init__(self, model, criterion, metric_ftns, optimizer_1, optimizer_2 , config, device,
                  data_loader, valid_data_loader=None, lr_scheduler=None, len_epoch=None):
-        super().__init__(model, criterion, metric_ftns, optimizer_1, optimizer_2, optimizer_3, optimizer_4, config)
+        super().__init__(model, criterion, metric_ftns, optimizer_1, optimizer_2, config)
         self.config = config
         self.device = device
         
@@ -48,8 +48,8 @@ class Trainer(BaseTrainer):
         self.criterion = Criterion(self.lambda_e, self.lambda_od, self.gamma_e, self.gamma_od, self.step_size).to(self.device)
 
         #CIFAR-10 Classifiers
-        self.t_mlp_classifier = MLPClassifier(hidden_layer_sizes=(256,128), activation='relu', solver='adam', alpha=0.05, learning_rate_init=0.0001, max_iter=1000)
-        self.s_mlp_classifier = MLPClassifier(hidden_layer_sizes=(256,128), activation='relu', solver='adam', alpha=0.05, learning_rate_init=0.0001, max_iter=1000)
+        self.t_mlp_classifier = MLPClassifier(hidden_layer_sizes=(256,128), activation='relu', solver='adam', alpha=0.05, learning_rate_init=0.0001, max_iter=10)
+        self.s_mlp_classifier = MLPClassifier(hidden_layer_sizes=(256,128), activation='relu', solver='adam', alpha=0.05, learning_rate_init=0.0001, max_iter=10)
         
         #Tabular Classifiers
         self.t_log_classifier = LogisticRegression()
@@ -59,9 +59,6 @@ class Trainer(BaseTrainer):
         self.t_linear_classifier = LinearRegression()
         self.s_linear_classifier = LinearRegression()
 
-        #self.tar_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=2)
-        #self.sen_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=10)
- 
         #CIFAR-100 Classifiers
         self.t_mlp_classifier_CIFAR100 = MLPClassifier(hidden_layer_sizes=(256,128), activation='relu', solver='adam', alpha=0.001, learning_rate_init=0.01, max_iter=1000)
         self.s_mlp_classifier_CIFAR100 = MLPClassifier(hidden_layer_sizes=(256,128), activation='relu', solver='adam', alpha=0.001, learning_rate_init=0.01, max_iter=1000)
@@ -98,13 +95,12 @@ class Trainer(BaseTrainer):
                 for param in self.model.encoder.resnet.parameters():
                     param.requires_grad=True
  
-                #import pdb; pdb.set_trace()
                 loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
 
                 loss.backward()
                 self.optimizer_1.step()
                 self.optimizer_2.step()
-            
+                
                 self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
                 self.train_metrics.update('loss', loss.item()+L_s)
 
@@ -173,7 +169,7 @@ class Trainer(BaseTrainer):
                 loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
                 loss.backward()
                 self.optimizer_1.step()
-
+                
                 self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
                 self.train_metrics.update('loss', loss.item()+L_s)
 
@@ -192,6 +188,7 @@ class Trainer(BaseTrainer):
 
                 s_zs = output[1][2]
                 L_s = self.bce(s_zs, sensitive.float())
+               
                 for param in self.model.encoder.shared_model.parameters():
                     param.requires_grad=False
                 L_s.backward(retain_graph=True)
@@ -202,7 +199,7 @@ class Trainer(BaseTrainer):
                 loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
                 loss.backward()
                 self.optimizer_1.step()
-        
+                
                 self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
                 self.train_metrics.update('loss', loss.item()+L_s)
 
@@ -271,7 +268,7 @@ class Trainer(BaseTrainer):
                     t_pred = self.t_mlp_classifier.fit(z_t.detach().numpy(), target)
                     t_predictions = torch.tensor(t_pred.predict(z_t.detach().numpy()))
                     
-                    s_pred = self.t_mlp_classifier.fit(z_t.detach().numpy(), sensitive)
+                    s_pred = self.s_mlp_classifier.fit(z_t.detach().numpy(), sensitive)
                     s_predictions = torch.tensor(s_pred.predict(z_t.detach().numpy()))
 
                     self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
@@ -300,15 +297,15 @@ class Trainer(BaseTrainer):
                         self.valid_metrics.update('loss', loss.item() + L_s)
                         self.valid_metrics.update('accuracy', self.metric_ftns[0](t_predictions.int().long(), target.argmax(dim=1)))
                         self.valid_metrics.update('sens_accuracy', self.metric_ftns[0](s_predictions.int().long(), sensitive.argmax(dim=1)))
-            else: #tabluar
+            else: #tabular
                 with torch.no_grad():
                     for batch_idx, (data, sensitive, target) in enumerate(self.valid_data_loader):
                         data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
                         output = self.model(data)
-
-                        s_zt = output[1][1]
-                        L_s = self.bce(s_zt, sensitive.float())
-                        loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
+                        
+                        s_zs = output[1][2]
+                        L_s = self.bce(s_zs, sensitive.float())
+                        loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
 
                         z_t = output[2][0]
 

@@ -5,9 +5,9 @@ from types import SimpleNamespace
 from base import BaseModel
 from torchvision.models import resnet18
 
-def reparameterization(mean_t, mean_s, log_std_t, log_std_s):
-    z1 = mean_t + torch.exp(log_std_t/2) @ torch.normal(torch.from_numpy(np.array([0.,1.]).T).float(), torch.eye(2))
-    z2 = mean_s + torch.exp(log_std_s/2) @ torch.normal(torch.from_numpy(np.array([1.,0.]).T).float(), torch.eye(2))
+def reparameterization(mean_t, mean_s, log_var_t, log_var_s):
+    z1 = mean_t + torch.exp(log_var_t/2) @ torch.normal(torch.from_numpy(np.array([0.,1.]).T).float(), torch.eye(2))
+    z2 = mean_s + torch.exp(log_var_s/2) @ torch.normal(torch.from_numpy(np.array([1.,0.]).T).float(), torch.eye(2))
     return z1, z2
 
 def mean_tensors(mean_1, mean_2, i):
@@ -17,21 +17,20 @@ def mean_tensors(mean_1, mean_2, i):
     mean_s = torch.from_numpy(mean_2).float()
     return mean_t, mean_s
     
-def reparameterization_cifar(mean_t, mean_s, log_std_t, log_std_s):
+def reparameterization_cifar(mean_t, mean_s, log_var_t, log_var_s):
 
     mean_1, mean_2 = mean_tensors(np.zeros(128), np.ones(128), 13)
     
-    z1 = mean_t + torch.exp(log_std_t/2) @ torch.normal(mean_1, torch.eye(128))
-    z2 = mean_s + torch.exp(log_std_s/2) @ torch.normal(mean_2, torch.eye(128))
+    z1 = mean_t + torch.exp(log_var_t/2) @ torch.normal(mean_1, torch.eye(128))
+    z2 = mean_s + torch.exp(log_var_s/2) @ torch.normal(mean_2, torch.eye(128))
 
-    return z1, z2
-
-def reparameterization_yale(mean_t, mean_s, log_std_t, log_std_s):
+    return z1, var
+def reparameterization_yale(mean_t, mean_s, log_var_t, log_var_s):
 
     mean_1, mean_2 = mean_tensors(np.zeros(100), np.ones(100), 13)
 
-    z1 = mean_t + torch.exp(log_std_t/2) @ torch.normal(mean_1, torch.eye(100))
-    z2 = mean_s + torch.exp(log_std_s/2) @ torch.normal(mean_2, torch.eye(100))
+    z1 = mean_t + torch.exp(log_var_t/2) @ torch.normal(mean_1, torch.eye(100))
+    z2 = mean_s + torch.exp(log_var_s/2) @ torch.normal(mean_2, torch.eye(100))
 
     return z1, z2
 
@@ -46,10 +45,10 @@ class TabularModel(BaseModel):
 
     def forward(self, x):
         #import pdb; pdb.set_trace()
-        mean_t, mean_s, log_std_t, log_std_s = self.encoder(x)
-        z1, z2 = reparameterization(mean_t, mean_s, log_std_t, log_std_s)
+        mean_t, mean_s, log_var_t, log_var_s = self.encoder(x)
+        z1, z2 = reparameterization(mean_t, mean_s, log_var_t, log_var_s)
         y_zt, s_zt, s_zs = self.decoder(z1, z2) 
-        return (mean_t, mean_s, log_std_t, log_std_s), (y_zt, s_zt, s_zs), (z1, z2)
+        return (mean_t, mean_s, log_var_t, log_var_s), (y_zt, s_zt, s_zs), (z1, z2)
 
 
 class Tabular_ModelEncoder(BaseModel):
@@ -67,10 +66,10 @@ class Tabular_ModelEncoder(BaseModel):
 
         #Output layers for each encoder
         self.mean_encoder_1 = nn.Linear(hidden_dim, z_dim)
-        self.log_std_1      = nn.Linear(hidden_dim, z_dim)
+        self.log_var_1      = nn.Linear(hidden_dim, z_dim)
 
         self.mean_encoder_2 = nn.Linear(hidden_dim, z_dim)
-        self.log_std_2      = nn.Linear(hidden_dim, z_dim)
+        self.log_var_2      = nn.Linear(hidden_dim, z_dim)
 
         #Activation function
         self.act_f = nn.ReLU() 
@@ -83,14 +82,13 @@ class Tabular_ModelEncoder(BaseModel):
         #Forward of each encoder
         out_1 = self.act_f(self.encoder_1(out_shared))
         mean_t = self.mean_encoder_1(out_1)
-        log_std_t = self.log_std_1(out_1)
+        log_var_t = self.log_var_1(out_1)
         
         out_2 = self.act_f(self.encoder_2(out_shared))
         mean_s = self.mean_encoder_2(out_2)
-        log_std_s = self.log_std_2(out_2)
+        log_var_s = self.log_var_2(out_2)
 
-        return mean_t, mean_s, log_std_t, log_std_s
-
+        return mean_t, mean_s, log_var_t, log_var_s
 
 
 class Tabular_ModelDecoder(BaseModel):
@@ -185,44 +183,11 @@ class ResNetBlock(BaseModel):
         out = self.act_fn(out)
         return out
 
-class PreActResNetBlock(BaseModel):
-
-    def __init__(self, c_in=1, act_fn=act_fn_by_name["relu"], subsample=True, c_out=-1):
-        
-        super().__init__()
-
-        if not subsample:
-            c_out = c_in
-            
-        # Network representing F
-        self.net = nn.Sequential(
-            nn.BatchNorm2d(c_in),
-            act_fn(),
-            nn.Conv2d(c_in, c_out, kernel_size=3, padding=1, stride=1 if not subsample else 2),
-            nn.BatchNorm2d(c_out),
-            act_fn(),
-            nn.Conv2d(c_out, c_out, kernel_size=3, padding=1))
-        
-        # 1x1 convolution needs to apply non-linearity as well as not done on skip connection
-        self.downsample = nn.Sequential(
-            nn.BatchNorm2d(c_in),
-            act_fn(),
-            nn.Conv2d(c_in, c_out, kernel_size=1, stride=2)) if subsample else None
-
-    def forward(self, x):
-        z = self.net(x)
-        if self.downsample is not None:
-            x = self.downsample(x)
-        out = z + x
-        return out
-
 resnet_blocks_by_name = {
-    "ResNetBlock": ResNetBlock,
-    "PreActResNetBlock": PreActResNetBlock}
+    "ResNetBlock": ResNetBlock}
 
 class ResNet(BaseModel):
 
-    #def __init__(self, num_classes=10, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="PreResNetBlock", **kwargs):
     def __init__(self, num_classes=128, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="ResNetBlock", **kwargs):
        
         super().__init__()
@@ -238,19 +203,15 @@ class ResNet(BaseModel):
         self._init_params()
 
     def _create_network(self):
+
         c_hidden = self.hparams.c_hidden
         
         # A first convolution on the original image to scale up the channel size
-        if self.hparams.block_class == PreActResNetBlock: # => Don't apply non-linearity on output
-            self.input_net = nn.Sequential(
-                nn.Conv2d(3, c_hidden[0], kernel_size=7, stride=2, padding=3),
-                nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
-        else:
-            self.input_net = nn.Sequential(
-                nn.Conv2d(3, c_hidden[0], kernel_size=7, stride=2, padding=3, bias=False),
-                nn.BatchNorm2d(c_hidden[0]),
-                self.hparams.act_fn(inplace=True),
-                nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
+        self.input_net = nn.Sequential(
+            nn.Conv2d(3, c_hidden[0], kernel_size=7, stride=2, padding=3, bias=False),
+            nn.BatchNorm2d(c_hidden[0]),
+            self.hparams.act_fn(inplace=True),
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
         
         # Creating the ResNet blocks
         blocks = []
@@ -309,11 +270,7 @@ class CIFAR_Encoder(BaseModel):
 
         #Activation function
         self.act_f = nn.ReLU()
-        self.resnet = ResNet()
 
-        #self.resnet = resnet18(pretrained=True)
-        #self.num_filters = self.resnet.fc.in_features
-        #self.resnet.fc = nn.Linear(self.num_filters, 10)
         self.resnet = ResNet()
 
     def forward(self, x):
@@ -321,12 +278,12 @@ class CIFAR_Encoder(BaseModel):
         out_1, out_2 = self.resnet(x)
         
         mean_t = self.mean_encoder_1(self.act_f(out_1))
-        log_std_t = self.log_std_1(self.act_f(out_1))
+        log_var_t = self.log_var_1(self.act_f(out_1))
         
         mean_s = self.mean_encoder_2(self.act_f(out_2))
-        log_std_s = self.log_std_2(self.act_f(out_2))
+        log_var_s = self.log_var_2(self.act_f(out_2))
         
-        return mean_t, mean_s, log_std_t, log_std_s
+        return mean_t, mean_s, log_var_t, log_var_s
 
 class CifarModel(BaseModel):
 
@@ -337,38 +294,11 @@ class CifarModel(BaseModel):
         self.decoder = Tabular_ModelDecoder(z_dim, hidden_dim, target_classes, sensitive_classes)
 
     def forward(self, x):
-        mean_t, mean_s, log_std_t, log_std_s = self.encoder(x)
-        z1, z2 = reparameterization_cifar(mean_t, mean_s, log_std_t, log_std_s)
+        mean_t, mean_s, log_var_t, log_var_s = self.encoder(x)
+        z1, z2 = reparameterization_cifar(mean_t, mean_s, log_var_t, log_var_s)
         y_zt, s_zt, s_zs = self.decoder(z1, z2) 
-        return (mean_t, mean_s, log_std_t, log_std_s), (y_zt, s_zt, s_zs), (z1, z2)
+        return (mean_t, mean_s, log_var_t, log_var_s), (y_zt, s_zt, s_zs), (z1, z2)
         
-class Cifar_Classifier(BaseModel):
-
-    def __init__(self, z_dim, hidden_dim, out_dim):
-        super().__init__()
-
-        self.num_layers = [z_dim] + hidden_dim
-        
-        #Activation function
-        self.act_f = nn.ReLU()
-
-        #Architecture without the output layer
-        self.layers = []
-        for layer_index in range(1, len(self.num_layers)):
-            self.layers += [nn.Linear(self.num_layers[layer_index - 1],
-                            self.num_layers[layer_index]), self.act_f]
-        
-        self.output= nn.Linear(self.num_layers[-1], out_dim)
-
-        self.classifier = nn.ModuleList(self.layers)
-
-    def forward(self, x):
-        out = x
-        for layers in self.classifier:
-            out = layers(out)
-        out = self.output(out)
-        #out = torch.softmax(out, dim=1)
-        return out
 
 class YaleModel(BaseModel):
 
@@ -381,7 +311,7 @@ class YaleModel(BaseModel):
 
     def forward(self, x):
         x = torch.flatten(x, start_dim=1)
-        mean_t, mean_s, log_std_t, log_std_s = self.encoder(x)
-        z1, z2 = reparameterization_yale(mean_t, mean_s, log_std_t, log_std_s)
+        mean_t, mean_s, log_var_t, log_var_s = self.encoder(x)
+        z1, z2 = reparameterization_yale(mean_t, mean_s, log_var_t, log_var_s)
         y_zt, s_zt, s_zs = self.decoder(z1, z2) 
-        return (mean_t, mean_s, log_std_t, log_std_s), (y_zt, s_zt, s_zs), (z1, z2)
+        return (mean_t, mean_s, log_var_t, log_var_s), (y_zt, s_zt, s_zs), (z1, z2)
