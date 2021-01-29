@@ -8,12 +8,12 @@
             "input_dim" : 128,
             "hidden_dim" : [256, 128],
             "z_dim" : 128,
-            "target_classes" : 2,
-            "sensitive_classes" : 10
+            "target_classes" : 20,
+            "sensitive_classes" : 100
         }
     },
     "data_loader": {
-        "type": "CIFAR10DataLoader",
+        "type": "CIFAR100DataLoader",
         "args":{
             "data_dir": "data/",
             "batch_size": 64,
@@ -66,7 +66,7 @@
         }
     },
     "trainer": {
-        "epochs": 100,
+        "epochs": 10,
 
         "save_dir": "saved/",
         "save_period": 1,
@@ -77,13 +77,11 @@
 
         "tensorboard": true,
 
-        "lambda_e" : 1.0,
-        "lambda_od" : 0.063,
-        "gamma_e" : 1,
-        "gamma_od" : 1.7,
+        "lambda_e" : 0.1,
+        "lambda_od" : 0.0325,
+        "gamma_e" : 1.67,
+        "gamma_od" : 1.2,
         "step_size" : 30
- 
-
 
     }
 }

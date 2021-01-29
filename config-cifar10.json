@@ -1,0 +1,81 @@
+{
+    "name": "Cifar10",
+    "n_gpu": 1,
+
+    "arch": {
+        "type": "CifarModel",
+        "args": {
+            "input_dim" : 128,
+            "hidden_dim" : [256, 128],
+            "z_dim" : 128,
+            "target_classes" : 2,
+            "sensitive_classes" : 10
+        }
+    },
+    "data_loader": {
+        "type": "CIFAR10DataLoader",
+        "args":{
+            "data_dir": "data/",
+            "batch_size": 64,
+            "shuffle": true,
+            "num_workers": 2
+        }
+    },
+    "optimizer_1": {
+        "type": "Adam",
+        "args":{
+            "lr": 0.0001,
+            "weight_decay": 0.01,
+            "amsgrad": true
+        }
+    },
+    "optimizer_2": {
+        "type": "Adam",
+        "args":{
+            "lr": 0.01,
+            "weight_decay": 0.001,
+            "amsgrad": true
+        }
+    },
+    "optimizer_3": {
+        "type": "Adam",
+        "args":{
+            "lr": 0.01,
+            "weight_decay": 0.001,
+            "amsgrad": true
+        }
+    },
+    "optimizer_4": {
+        "type": "Adam",
+        "args":{
+            "lr": 0.01,
+            "weight_decay": 0.001,
+            "amsgrad": true
+        }
+    },
+    "loss": "loss",
+    "metrics": [
+        "accuracy", "sens_accuracy"
+    ],
+    "trainer": {
+        "epochs": 100,
+
+        "save_dir": "saved/",
+        "save_period": 1,
+        "verbosity": 2,
+        
+        "monitor": "min val_loss",
+        "early_stop": 10,
+
+        "tensorboard": true,
+
+        "lambda_e" : 1.0,
+        "lambda_od" : 0.063,
+        "gamma_e" : 1,
+        "gamma_od" : 1.7,
+        "step_size" : 30
+ 
+
+
+    }
+}

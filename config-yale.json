@@ -1,22 +1,22 @@
 {
-    "name": "Adult",
+    "name": "Yale",
     "n_gpu": 1,
 
     "arch": {
-        "type": "TabularModel",
+        "type": "YaleModel",
         "args": {
-            "input_dim" : 108,
-            "hidden_dim" : 64,
-            "z_dim" : 2,
-            "target_classes" : 1,
-            "sensitive_classes" : 2
+            "input_dim" : 32256,
+            "hidden_dim" : 100,
+            "z_dim" : 100,
+            "target_classes" : 39,
+            "sensitive_classes" : 5
         }
     },
     "data_loader": {
-        "type": "AdultDataLoader",
+        "type": "YaleDataLoader",
         "args":{
-            "data_dir": "data/adult/",
-            "batch_size": 64,
+            "data_dir": "data/yale/",
+            "batch_size": 16,
             "shuffle": true,
             "num_workers": 2
         }
@@ -24,8 +24,8 @@
     "optimizer": {
         "type": "Adam",
         "args":{
-            "lr": 0.001,
-            "weight_decay": 0.0005,
+            "lr": 0.0001,
+            "weight_decay": 0.05,
             "amsgrad": true
         }
     },
@@ -34,24 +34,17 @@
         "accuracy", "sens_accuracy"
     ],
     "trainer": {
-        "epochs": 40,
-
+        "epochs": 100,
         "save_dir": "saved/",
         "save_period": 1,
         "verbosity": 2,
-        
         "monitor": "min val_loss",
-        "early_stop": 10,
-
+        "early_stop": 0,
         "tensorboard": true,
-
-        "lambda_e" : 0.55,
+        "lambda_e" : 1.0,
         "lambda_od" : 0.037,
-        "gamma_e" : 1.66,
-        "gamma_od" : 0.8,
+        "gamma_e" : 2.0,
+        "gamma_od" : 1.1,
         "step_size" : 30
- 
-
-
     }
 }

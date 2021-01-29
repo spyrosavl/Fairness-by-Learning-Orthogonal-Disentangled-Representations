@@ -172,9 +172,6 @@ class ResNetBlock(BaseModel):
             nn.BatchNorm2d(c_out))
         
         # 1x1 convolution with stride 2 means we take the upper left value, and transform it to new output size
-#        self.downsample = nn.Sequential(
-#            nn.Conv2d(c_in, c_out, kernel_size=1, stride=2, bias=False),
-#            nn.BatchNorm2d(c_out)) if subsample else None
         self.downsample = nn.Conv2d(c_in, c_out, kernel_size=1, stride=2) if subsample else None
         self.act_fn = act_fn(inplace=True)
  
@@ -223,8 +220,8 @@ resnet_blocks_by_name = {
 
 class ResNet(BaseModel):
 
-    #def __init__(self, num_classes=10, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="PreResNetBlock", **kwargs):
-    def __init__(self, num_classes=128, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="ResNetBlock", **kwargs):
+    def __init__(self, num_classes=1000, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="PreResNetBlock", **kwargs):
+  #  def __init__(self, num_classes=128, num_blocks=[2,2,2,2], c_hidden=[64,128,256,512], act_fn_name="relu", block_name="ResNetBlock", **kwargs):
        
         super().__init__()
 
@@ -314,28 +311,28 @@ class CIFAR_Encoder(BaseModel):
 
         #Activation function
         self.act_f = nn.ReLU()
-        self.resnet = ResNet()
+        #self.resnet = ResNet()
 
-        #self.resnet = resnet18(pretrained=True)
+        self.resnet = resnet18(pretrained=True)
         #self.num_filters = self.resnet.fc.in_features
         #self.resnet.fc = nn.Linear(self.num_filters, 10)
         self.resnet = ResNet()
 
     def forward(self, x):
         
-        out_1, out_2 = self.resnet(x)
+        #out_1, out_2 = self.resnet(x)
         
-        mean_t = self.mean_encoder_1(self.act_f(out_1))
-        log_std_t = self.log_std_1(self.act_f(out_1))
+        #mean_t = self.mean_encoder_1(self.act_f(out_1))
+        #log_std_t = self.log_std_1(self.act_f(out_1))
         
-        mean_s = self.mean_encoder_2(self.act_f(out_2))
-        log_std_s = self.log_std_2(self.act_f(out_2))
+        #mean_s = self.mean_encoder_2(self.act_f(out_2))
+        #log_std_s = self.log_std_2(self.act_f(out_2))
 
-        #out = self.resnet(x)
-        #mean_t = self.mean_encoder_1(self.act_f(out))
-        #log_std_t = self.log_std_1(self.act_f(out))
-        #mean_s = self.mean_encoder_2(self.act_f(out))
-        #log_std_s = self.log_std_2(self.act_f(out))
+        out = self.resnet(x)
+        mean_t = self.mean_encoder_1(self.act_f(out))
+        log_std_t = self.log_std_1(self.act_f(out))
+        mean_s = self.mean_encoder_2(self.act_f(out))
+        log_std_s = self.log_std_2(self.act_f(out))
         
         return mean_t, mean_s, log_std_t, log_std_s
 

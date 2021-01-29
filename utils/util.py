@@ -93,21 +93,26 @@ class Criterion(nn.Module):
         y_zt, s_zt, s_zs = inputs[1]
         z1, z2 = inputs[2]
 
-        if dataset_name == 'CIFAR10DataLoader':
+        if dataset_name in ['CIFAR10DataLoader', 'CIFAR100DataLoader']:
             L_t = self.cross(y_zt, target)
-            mean_1, mean_2 = mean_tensors(np.zeros(128), 50), mean_tensors(np.zeros(128), 100)
+            mean_1, mean_2 = mean_tensors(np.zeros(128), np.ones(128), 13)
             m_t = MultivariateNormal(mean_1, torch.eye(128))
             m_s = MultivariateNormal(mean_2, torch.eye(128))
-            
-        else:
+        elif dataset_name == 'YaleDataLoader':
+            target_arg_max = target.squeeze().argmax(dim=1)
+            L_t = self.cross(y_zt, target_arg_max)
+            mean_1, mean_2 = mean_tensors(np.zeros(100), np.ones(100), 13)
+            m_t = MultivariateNormal(mean_1, torch.eye(100))
+            m_s = MultivariateNormal(mean_2, torch.eye(100)) 
+        else: #tabular
             L_t = self.bce(y_zt, target[:,None].float())
             m_t = MultivariateNormal(torch.tensor([0.,1.]), torch.eye(2))
             m_s = MultivariateNormal(torch.tensor([1.,0.]), torch.eye(2))
         
-        uniform = torch.rand(size=s_zt.size())
-        Loss_e = self.kld(torch.log_softmax(uniform, dim=1), torch.softmax(s_zt, dim=1))
-        #Loss_e = L_e(s_zs)
-        #print(Loss_e)
+        #uniform = torch.rand(size=s_zt.size())
+        #Loss_e = self.kld(torch.log_softmax(s_zt, dim=1), torch.softmax(uniform, dim=1))
+        Loss_e = L_e(s_zt)
+        
         #TODO should the priors be the same for each loss computation?
         # --> should we define them in init?       
         prior_t=[]; prior_s=[]
@@ -132,8 +137,9 @@ class Criterion(nn.Module):
         #print(enc_dis_s)
        
         #print(torch.softmax(enc_dis_t, dim=1))
-        L_zt = self.kld(torch.log_softmax(prior_t, dim=1), torch.softmax(enc_dis_t, dim=1))
-        L_zs = self.kld(torch.log_softmax(prior_s, dim=1), torch.softmax(enc_dis_s, dim=1))
+        L_zt = self.kld(torch.log_softmax(enc_dis_t, dim=1), torch.softmax(prior_t, dim=1))
+        L_zs = self.kld(torch.log_softmax(enc_dis_s, dim=1), torch.softmax(prior_s, dim=1))
+
         #print(L_zs, L_zt)
         lambda_e = self.lambda_e * self.gamma_e ** (current_step/self.step_size)
         lambda_od = self.lambda_od * self.gamma_od ** (current_step/self.step_size)
