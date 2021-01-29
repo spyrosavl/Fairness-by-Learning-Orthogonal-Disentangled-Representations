@@ -172,10 +172,10 @@ class ResNetBlock(BaseModel):
             nn.BatchNorm2d(c_out))
         
         # 1x1 convolution with stride 2 means we take the upper left value, and transform it to new output size
-#        self.downsample = nn.Sequential(
-#            nn.Conv2d(c_in, c_out, kernel_size=1, stride=2, bias=False),
-#            nn.BatchNorm2d(c_out)) if subsample else None
-        self.downsample = nn.Conv2d(c_in, c_out, kernel_size=1, stride=2) if subsample else None
+        self.downsample = nn.Sequential(
+            nn.Conv2d(c_in, c_out, kernel_size=1, stride=2, bias=False),
+            nn.BatchNorm2d(c_out)) if subsample else None
+#        self.downsample = nn.Conv2d(c_in, c_out, kernel_size=1, stride=2) if subsample else None
         self.act_fn = act_fn(inplace=True)
  
     def forward(self, x):
@@ -331,12 +331,6 @@ class CIFAR_Encoder(BaseModel):
         mean_s = self.mean_encoder_2(self.act_f(out_2))
         log_std_s = self.log_std_2(self.act_f(out_2))
 
-        #out = self.resnet(x)
-        #mean_t = self.mean_encoder_1(self.act_f(out))
-        #log_std_t = self.log_std_1(self.act_f(out))
-        #mean_s = self.mean_encoder_2(self.act_f(out))
-        #log_std_s = self.log_std_2(self.act_f(out))
-        
         return mean_t, mean_s, log_std_t, log_std_s
 
 class CifarModel(BaseModel):

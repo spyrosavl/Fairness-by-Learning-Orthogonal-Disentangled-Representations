@@ -12,6 +12,7 @@ from utils import prepare_device
 from model.model import *
 from data_loader.data_loaders import GermanCreditDatasetOneHot
 from torch.utils.data import DataLoader
+import os, psutil
 
 
 # fix random seeds for reproducibility
@@ -77,8 +78,12 @@ def main(config):
                         data_loader=data_loader,
                         valid_data_loader=valid_data_loader)
 
-    
+    process = psutil.Process(os.getpid())
+    print(process.memory_info().rss)  # in bytes 
     trainer.train()
+    
+    process = psutil.Process(os.getpid())
+    print(process.memory_info().rss)  # in bytes
 
 
 if __name__ == '__main__':
