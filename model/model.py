@@ -156,7 +156,7 @@ act_fn_by_name = {
 
 class ResNetBlock(BaseModel):
 
-    def __init__(self, c_in=1, act_fn=act_fn_by_name["relu"], subsample=True, c_out=-1):
+    def __init__(self, c_in=3, act_fn=act_fn_by_name["relu"], subsample=True, c_out=-1):
         
         super().__init__()
 
@@ -165,14 +165,16 @@ class ResNetBlock(BaseModel):
             
         # Network representing F
         self.net = nn.Sequential(
-            nn.Conv2d(c_in, c_out, kernel_size=3, padding=1, stride=1 if not subsample else 2), # No bias needed as the Batch Norm handles it
+            nn.Conv2d(c_in, c_out, kernel_size=3, padding=1, stride=1 if not subsample else 2, bias=False), # No bias needed as the Batch Norm handles it
             nn.BatchNorm2d(c_out),
             act_fn(inplace=True),
-            nn.Conv2d(c_out, c_out, kernel_size=3, padding=1),
+            nn.Conv2d(c_out, c_out, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(c_out))
         
         # 1x1 convolution with stride 2 means we take the upper left value, and transform it to new output size
-        self.downsample = nn.Conv2d(c_in, c_out, kernel_size=1, stride=2) if subsample else None
+        self.downsample = nn.Sequential(
+            nn.Conv2d(c_in, c_out, kernel_size=1, stride=2, bias=False),
+            nn.BatchNorm2d(c_out)) if subsample else None
         self.act_fn = act_fn(inplace=True)
  
     def forward(self, x):
@@ -244,7 +246,7 @@ class ResNet(BaseModel):
                 nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
         else:
             self.input_net = nn.Sequential(
-                nn.Conv2d(3, c_hidden[0], kernel_size=7, stride=2, padding=3),
+                nn.Conv2d(3, c_hidden[0], kernel_size=7, stride=2, padding=3, bias=False),
                 nn.BatchNorm2d(c_hidden[0]),
                 self.hparams.act_fn(inplace=True),
                 nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
@@ -277,7 +279,7 @@ class ResNet(BaseModel):
         
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.xavier_normal_(m.weight)
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
@@ -297,10 +299,6 @@ class CIFAR_Encoder(BaseModel):
         
         self.z_dim = z_dim
         
-        #ResNet to encoders
-        #self.fc1 = nn.Linear(input_dim, enc_hidden)
-        #self.fc2 = nn.Linear(input_dim, enc_hidden)
-
         #Output layers for each encoder
         self.mean_encoder_1 = nn.Linear(input_dim, z_dim)
         self.log_std_1      = nn.Linear(input_dim, z_dim)
@@ -311,22 +309,17 @@ class CIFAR_Encoder(BaseModel):
         #Activation function
         self.act_f = nn.ReLU()
 
-        #self.resnet = resnet18(pretrained=True)
-        
-        #self.num_filters = self.resnet.fc.in_features
-
-        #self.resnet.fc = nn.Linear(self.num_filters, 10)
-        self.resnet = ResNet()
+        self.resnet = resnet18(pretrained=True)
 
     def forward(self, x):
         
-        out_1, out_2 = self.resnet(x)
+        out = self.resnet(x)
         
-        mean_t = self.mean_encoder_1(self.act_f(out_1))
-        log_std_t = self.log_std_1(self.act_f(out_1))
+        mean_t = self.mean_encoder_1(self.act_f(out))
+        log_std_t = self.log_std_1(self.act_f(out))
         
-        mean_s = self.mean_encoder_2(self.act_f(out_2))
-        log_std_s = self.log_std_2(self.act_f(out_2))
+        mean_s = self.mean_encoder_2(self.act_f(out))
+        log_std_s = self.log_std_2(self.act_f(out))
         
         return mean_t, mean_s, log_std_t, log_std_s
 

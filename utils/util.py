@@ -99,7 +99,7 @@ class Criterion(nn.Module):
             m_t = MultivariateNormal(mean_1, torch.eye(128))
             m_s = MultivariateNormal(mean_2, torch.eye(128))
         elif dataset_name == 'YaleDataLoader':
-            target_arg_max = target.squeeze().argmax(dim=1)
+            target_arg_max = target.argmax(dim=1)
             L_t = self.cross(y_zt, target_arg_max)
             mean_1, mean_2 = mean_tensors(np.zeros(100), np.ones(100), 13)
             m_t = MultivariateNormal(mean_1, torch.eye(100))
@@ -137,8 +137,8 @@ class Criterion(nn.Module):
         #print(enc_dis_s)
        
         #print(torch.softmax(enc_dis_t, dim=1))
-        L_zt = self.kld(torch.log_softmax(enc_dis_t, dim=1), torch.softmax(prior_t, dim=1))
-        L_zs = self.kld(torch.log_softmax(enc_dis_s, dim=1), torch.softmax(prior_s, dim=1))
+        L_zt = self.kld(torch.log_softmax(prior_t, dim=1), torch.softmax(enc_dis_t, dim=1))
+        L_zs = self.kld(torch.log_softmax(prior_s, dim=1), torch.softmax(enc_dis_s, dim=1))
 
         #print(L_zs, L_zt)
         lambda_e = self.lambda_e * self.gamma_e ** (current_step/self.step_size)
