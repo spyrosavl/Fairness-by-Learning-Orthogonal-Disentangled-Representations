@@ -3,10 +3,11 @@ import torch
 from torchvision.utils import make_grid
 from base import BaseTrainer
 from utils import inf_loop, MetricTracker, Criterion
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression
 from model.model import *
 from model.loss import *
 from sklearn.preprocessing import normalize
+from sklearn.neural_network import MLPClassifier
 
 class Trainer(BaseTrainer):
     """
@@ -45,11 +46,10 @@ class Trainer(BaseTrainer):
         self.criterion = Criterion(self.lambda_e, self.lambda_od, self.gamma_e, self.gamma_od, self.step_size).to(self.device)
         self.target_clf = LogisticRegression()
         self.sensitive_clf = LogisticRegression()
-        self.tar_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=2)
-        self.sen_clf = Cifar_Classifier(z_dim=128, hidden_dim=[256, 128], out_dim=10)
-        self.yale_tar_clf = Yale_Classifier(z_dim=100, out_dim=38)
-        self.yale_sen_clf = Yale_Classifier(z_dim=100, out_dim=64)
-
+        #self.tar_clf = MLPClassifier(hidden_layer_sizes=(256, 128), activation='relu', solver='adam', alpha=0.001, learning_rate_init=0.01, max_iter=80)
+        #self.sen_clf = MLPClassifier(hidden_layer_sizes=(256, 128), activation='relu', solver='adam', alpha=0.001, learning_rate_init=0.01, max_iter=80)
+        self.t_classifier = MLPClassifier(hidden_layer_sizes=(100), activation='relu', solver='adam', alpha=0.05, learning_rate_init=0.0001, max_iter=1000)
+        self.s_classifier = MLPClassifier(hidden_layer_sizes=(100), activation='relu', solver='adam', alpha=0.05, learning_rate_init=0.0001, max_iter=1000)
         self.cross = nn.CrossEntropyLoss()
         self.bce = nn.BCEWithLogitsLoss()
 
@@ -63,10 +63,11 @@ class Trainer(BaseTrainer):
         self.model.train()
         self.train_metrics.reset()
 
-        for batch_idx, (data, sensitive, target) in enumerate(self.data_loader):
-            data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
+        for batch_idx, (data, sensitive) in enumerate(self.data_loader):
+            #data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
             if self.dataset_name == 'CIFAR10DataLoader':
                 target = torch.tensor([i in self.living_classes for i in sensitive]).long()
+                data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
                 
                 self.optimizer_1.zero_grad()
                 self.optimizer_2.zero_grad()
@@ -91,7 +92,7 @@ class Trainer(BaseTrainer):
             elif self.dataset_name == 'YaleDataLoader':                
                 self.optimizer_1.zero_grad()
                 output = self.model(data)
-
+                
                 s_zs = output[1][2]
                 sensitive_arg_max = sensitive.argmax(dim=1)
                 L_s = self.cross(s_zs, sensitive_arg_max)
@@ -102,7 +103,7 @@ class Trainer(BaseTrainer):
                 for param in self.model.encoder.shared_model.parameters():
                     param.requires_grad=True
                 
-                loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
+                loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
                 loss.backward()
                 self.optimizer_1.step()
                     
@@ -154,84 +155,55 @@ class Trainer(BaseTrainer):
         self.valid_metrics.reset()
         #with torch.no_grad():
         if self.dataset_name == 'CIFAR10DataLoader':
-            for batch_idx, (data, sensitive) in enumerate(self.valid_data_loader):
-                data, sensitive = data.to(self.device), sensitive.to(self.device)
-                target = torch.tensor([i in self.living_classes for i in sensitive]).long()
-                
-                self.optimizer_3.zero_grad()
-                self.optimizer_4.zero_grad()
-                
-                output = self.model(data)
-                z_t = output[2][0]
-                
-                s_zt = output[1][1]
-                L_s = self.cross(s_zt, sensitive)
-                loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
+            with torch.no_grad():
+                for batch_idx, (data, sensitive) in enumerate(self.valid_data_loader):
+                    data, sensitive = data.to(self.device), sensitive.to(self.device)
+                    target = torch.tensor([i in self.living_classes for i in sensitive]).long()
+                    
+                    output = self.model(data)
+                    z_t = output[2][0]
+                    s_zs = output[1][2]
 
-                for param_1 in self.model.encoder.parameters():
-                    param_1.requires_grad=False
+                    self.tar_clf = MLPClassifier(hidden_layer_sizes=(256, 128), activation='relu', solver='adam', alpha=0.001, learning_rate_init=0.01, max_iter=5000)
+                    self.sen_clf = MLPClassifier(hidden_layer_sizes=(256, 128), activation='relu', solver='adam', alpha=0.001, learning_rate_init=0.01, max_iter=5000)
 
-                for param_2 in self.model.decoder.parameters():
-                    param_2.requires_grad=False
+                    L_s = self.cross(s_zs, sensitive)
+                    loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
 
-                t_predictions = self.tar_clf.forward(z_t)
-                t_pred = torch.argmax(torch.softmax(t_predictions, dim=1), dim=1)
-                loss_clf_1 = self.cross(t_predictions, target)
-                loss_clf_1.backward()
-                self.optimizer_3.step()
+                    t_pred = self.tar_clf.fit(z_t.detach().numpy(), target)
+                    t_predictions = torch.tensor(t_pred.predict(z_t.detach().numpy()))
+                    
+                    s_pred = self.sen_clf.fit(z_t.detach().numpy(), sensitive)
+                    s_predictions = torch.tensor(s_pred.predict(z_t.detach().numpy()))
 
-                s_predictions = self.sen_clf.forward(z_t)
-                s_pred = torch.argmax(torch.softmax(s_predictions, dim=1), dim=1)
-                loss_clf_2 = self.cross(s_predictions, sensitive)
-                loss_clf_2.backward()
-                self.optimizer_4.step()
-                
-                for param_1 in self.model.encoder.parameters():
-                    param_1.requires_grad=True
-                
-                for param_2 in self.model.decoder.parameters():
-                    param_2.requires_grad=True
+                    self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
+                    self.valid_metrics.update('loss', loss.item() + L_s)
+                    self.valid_metrics.update('accuracy', self.metric_ftns[0](t_predictions, target))
+                    self.valid_metrics.update('sens_accuracy', self.metric_ftns[0](s_predictions, sensitive))
 
-
-                self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
-                self.valid_metrics.update('loss', loss.item() + L_s)
-                self.valid_metrics.update('accuracy', self.metric_ftns[0](t_pred, target))
-                self.valid_metrics.update('sens_accuracy', self.metric_ftns[0](s_pred, sensitive))
         elif self.dataset_name == 'YaleDataLoader':
-            for batch_idx, (data, sensitive, target) in enumerate(self.valid_data_loader):
-                data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
-                
-                self.optimizer_1.zero_grad()
+            with torch.no_grad():
+                for batch_idx, (data, sensitive, target) in enumerate(self.valid_data_loader):
+                    data, sensitive, target = data.to(self.device), sensitive.to(self.device), target.to(self.device)
+                    
+                    output = self.model(data)
+                    s_zs = output[1][2]
+                    L_s = self.cross(s_zs, sensitive.argmax(dim=1))
+                    loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
 
-                output = self.model(data)
+                    z_t = output[2][0]
+                    
+                    t_pred = self.t_classifier.fit(z_t, target.argmax(dim=1))
+                    t_predictions = torch.tensor(t_pred.predict(z_t))
+                    #print(t_predictions.int().long())
+                    s_pred = self.s_classifier.fit(z_t, sensitive.argmax(dim=1))
+                    s_predictions = torch.tensor(s_pred.predict(z_t))
+                    #print(s_predictions)
 
-                s_zt = output[1][1]
-                L_s = self.cross(s_zt, sensitive.argmax(dim=1))
-                loss = self.criterion(output, target, sensitive, self.dataset_name, batch_idx)
-
-                z_t = output[2][0]
-
-                for param in self.model.encoder.parameters():
-                    param.requires_grad=False
-
-                t_predictions = self.yale_tar_clf.forward(z_t)
-                t_pred = torch.argmax(torch.softmax(t_predictions, dim=0), dim=1)
-                loss_clf_1 = self.cross(t_predictions, target.argmax(dim=1))
-                loss_clf_1.backward(retain_graph=True)
-
-                s_predictions = self.yale_sen_clf.forward(z_t)
-                s_pred = torch.argmax(torch.softmax(s_predictions, dim=0), dim=1)
-                loss_clf_2 = self.cross(s_predictions, sensitive.argmax(dim=1))
-                loss_clf_2.backward()
-
-                self.optimizer_1.step()
-
-                for param in self.model.encoder.parameters():
-                    param.requires_grad=True
-                
-                self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
-                self.valid_metrics.update('accuracy', self.metric_ftns[0](t_pred, target.argmax(dim=1)))
-                self.valid_metrics.update('sens_accuracy', self.metric_ftns[0](s_pred, sensitive.argmax(dim=1)))
+                    self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
+                    self.valid_metrics.update('loss', loss.item() + L_s)
+                    self.valid_metrics.update('accuracy', self.metric_ftns[0](t_predictions.int().long(), target.argmax(dim=1)))
+                    self.valid_metrics.update('sens_accuracy', self.metric_ftns[0](s_predictions.int().long(), sensitive.argmax(dim=1)))
         else: #tabluar
             with torch.no_grad():
                 for batch_idx, (data, sensitive, target) in enumerate(self.valid_data_loader):

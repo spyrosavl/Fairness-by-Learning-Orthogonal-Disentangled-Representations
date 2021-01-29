@@ -16,7 +16,7 @@
         "type": "CIFAR10DataLoader",
         "args":{
             "data_dir": "data/",
-            "batch_size": 32,
+            "batch_size": 64,
             "shuffle": true,
             "num_workers": 2
         }

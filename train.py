@@ -65,15 +65,12 @@ def main(config):
         optimizer_3 = config.init_obj('optimizer_3', torch.optim, trainable_params_3)
         trainable_params_4 = filter(lambda p: p.requires_grad, classifier_2.parameters())
         optimizer_4 = config.init_obj('optimizer_4', torch.optim, trainable_params_4)
-        lr_scheduler = config.init_obj('lr_scheduler', torch.optim.lr_scheduler, optimizer_1)
         
-
         trainer = Trainer(model, criterion, metrics, optimizer_1, optimizer_2, optimizer_3, optimizer_4,
                         config=config,
                         device=device,
                         data_loader=data_loader,
-                        valid_data_loader=valid_data_loader,
-                        lr_scheduler=lr_scheduler)
+                        valid_data_loader=valid_data_loader)
 
     
     trainer.train()
