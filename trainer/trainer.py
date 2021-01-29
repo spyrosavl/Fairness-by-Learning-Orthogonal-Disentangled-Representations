@@ -208,51 +208,32 @@ class Trainer(BaseTrainer):
         """
         self.model.eval()
         self.valid_metrics.reset()
-        #with torch.no_grad():
-        if self.dataset_name == 'CIFAR100DataLoader':
-            for batch_idx, (data, sensitive) in enumerate(self.valid_data_loader):
-                data, sensitive = data.to(self.device), sensitive.to(self.device)
-                target = torch.tensor([fine_to_coarse[int(i)] for i in sensitive]).long()
+        with torch.no_grad():
+            if self.dataset_name == 'CIFAR100DataLoader':
+                for batch_idx, (data, sensitive) in enumerate(self.valid_data_loader):
+                    data, sensitive = data.to(self.device), sensitive.to(self.device)
+                    target = torch.tensor([fine_to_coarse[int(i)] for i in sensitive]).long()
                 
-                self.optimizer_3.zero_grad()
-                self.optimizer_4.zero_grad()
+                    self.optimizer_3.zero_grad()
+                    self.optimizer_4.zero_grad()
 
-                output = self.model(data)
-                z_t_torch = output[2][0]
-                z_t = z_t_torch.detach().numpy()
-                s_zs = output[1][2]
-                L_s = self.cross(s_zs, sensitive)
-                loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
+                    output = self.model(data)
+                    z_t_torch = output[2][0]
+                    z_t = z_t_torch.detach().numpy()
+                    s_zs = output[1][2]
+                    L_s = self.cross(s_zs, sensitive)
+                    loss = self.criterion(output, target, sensitive, self.dataset_name, epoch)
 
-                for param in self.model.encoder.parameters():
-                    param.requires_grad=False
+                    clf_tar = self.tar_clf_100.fit(z_t, target)
+                    t_pred = torch.tensor(clf_tar.predict(z_t))
 
-                clf_tar = self.tar_clf_100.fit(z_t, target)
-                t_pred = torch.tensor(clf_tar.predict(z_t))
-
-                clf_sen = self.sen_clf_100.fit(z_t, sensitive)
-                s_pred = torch.tensor(clf_sen.predict(z_t))
-
-
-#                t_predictions = self.tar_clf_100.forward(z_t)
-#                t_pred = torch.argmax(torch.softmax(t_predictions, dim=0), dim=1)
-#                loss_clf_1 = self.cross(t_predictions, target)
-#                loss_clf_1.backward(retain_graph=True)
-#                self.optimizer_3.step()
-#                s_predictions = self.sen_clf_100.forward(z_t)
-#                s_pred = torch.argmax(torch.softmax(s_predictions, dim=0), dim=1)
-#                loss_clf_2 = self.cross(s_predictions, sensitive)
-#                loss_clf_2.backward()
-#                self.optimizer_4.step()
-                
-                for param in self.model.encoder.parameters():
-                    param.requires_grad=True
-
-                self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
-                self.valid_metrics.update('accuracy', self.metric_ftns[0](t_pred, target))
-                self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_pred, sensitive))
-                self.valid_metrics.update('loss', loss.item() + L_s)
-
+                    clf_sen = self.sen_clf_100.fit(z_t, sensitive)
+                    s_pred = torch.tensor(clf_sen.predict(z_t))
+ 
+                    self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
+                    self.valid_metrics.update('accuracy', self.metric_ftns[0](t_pred, target))
+                    self.valid_metrics.update('sens_accuracy', self.metric_ftns[1](s_pred, sensitive))
+                    self.valid_metrics.update('loss', loss.item() + L_s)
 
         elif self.dataset_name == 'CIFAR10DataLoader':
             for batch_idx, (data, sensitive) in enumerate(self.valid_data_loader):
