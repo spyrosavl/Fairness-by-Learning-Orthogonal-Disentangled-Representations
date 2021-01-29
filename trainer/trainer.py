@@ -234,7 +234,7 @@ class Trainer(BaseTrainer):
                 for batch_idx, (data, sensitive) in enumerate(self.valid_data_loader):
                     data, sensitive = data.to(self.device), sensitive.to(self.device)
                     target = torch.tensor([fine_to_coarse[int(i)] for i in sensitive]).long()
-                        
+                
                     output = self.model(data)
                     z_t = output[2][0]
                     s_zs = output[1][2]
