@@ -12,6 +12,7 @@ from utils import prepare_device
 from model.model import *
 from data_loader.data_loaders import GermanCreditDatasetOneHot
 from torch.utils.data import DataLoader
+import os
 
 
 # fix random seeds for reproducibility
@@ -36,13 +37,6 @@ def main(config):
     device, device_ids = prepare_device(config['n_gpu'])
     model = model.to(device)
     
-    if config["data_loader"]["type"] == 'CIFAR10DataLoader':
-        classifier_1 = Cifar_Classifier(z_dim=128, hidden_dim=[256,128], out_dim=2).to(device)
-        classifier_2 = Cifar_Classifier(z_dim=128, hidden_dim=[256,128], out_dim=10).to(device)
-    if config["data_loader"]["type"] == 'CIFAR100DataLoader':
-        classifier_1 = Cifar_Classifier(z_dim=128, hidden_dim=[256,128], out_dim=20).to(device)
-        classifier_2 = Cifar_Classifier(z_dim=128, hidden_dim=[256,128], out_dim=100).to(device)
- 
     if len(device_ids) > 1:
         model = torch.nn.DataParallel(model, device_ids=device_ids)
 
@@ -56,7 +50,7 @@ def main(config):
         trainable_params = filter(lambda p: p.requires_grad, model.parameters())
         optimizer = config.init_obj('optimizer', torch.optim, trainable_params)
 
-        trainer = Trainer(model, criterion, metrics, optimizer, optimizer_2=None, optimizer_3=None, optimizer_4=None,
+        trainer = Trainer(model, criterion, metrics, optimizer, optimizer_2=None,
                         config=config,
                         device=device,
                         data_loader=data_loader,
@@ -66,20 +60,14 @@ def main(config):
         optimizer_1 = config.init_obj('optimizer_1', torch.optim, trainable_params_1)
         trainable_params_2 = filter(lambda p: p.requires_grad, model.decoder.parameters())
         optimizer_2 = config.init_obj('optimizer_2', torch.optim, trainable_params_2)
-        trainable_params_3 = filter(lambda p: p.requires_grad, classifier_1.parameters())
-        optimizer_3 = config.init_obj('optimizer_3', torch.optim, trainable_params_3)
-        trainable_params_4 = filter(lambda p: p.requires_grad, classifier_2.parameters())
-        optimizer_4 = config.init_obj('optimizer_4', torch.optim, trainable_params_4)
-        
-        trainer = Trainer(model, criterion, metrics, optimizer_1, optimizer_2, optimizer_3, optimizer_4,
+       
+        trainer = Trainer(model, criterion, metrics, optimizer_1, optimizer_2,
                         config=config,
                         device=device,
                         data_loader=data_loader,
                         valid_data_loader=valid_data_loader)
 
-    
     trainer.train()
-
 
 if __name__ == '__main__':
     args = argparse.ArgumentParser(description='PyTorch Template')

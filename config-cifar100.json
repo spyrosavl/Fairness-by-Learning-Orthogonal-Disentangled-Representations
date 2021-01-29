@@ -38,22 +38,6 @@
             "amsgrad": true
         }
     },
-    "optimizer_3": {
-        "type": "Adam",
-        "args":{
-            "lr": 0.01,
-            "weight_decay": 0.001,
-            "amsgrad": true
-        }
-    },
-    "optimizer_4": {
-        "type": "Adam",
-        "args":{
-            "lr": 0.01,
-            "weight_decay": 0.001,
-            "amsgrad": true
-        }
-    },
     "loss": "nll_loss",
     "metrics": [
         "accuracy", "sens_accuracy"
@@ -73,7 +57,7 @@
         "verbosity": 2,
         
         "monitor": "min val_loss",
-        "early_stop": 10,
+        "early_stop": 5,
 
         "tensorboard": true,
 
